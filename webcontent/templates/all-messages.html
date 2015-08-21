@@ -1,0 +1,31 @@
+<messages-header></messages-header>
+<div class="row">
+	<div class="col-sm-12">
+		<button type="button" class="btn btn-success" data-toggle="modal" data-target="#newCon"><span class="glyphicon glyphicon-plus"></span> New Conversation</button>
+	</div>
+	<div id="newCon" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 class="modal-title">Create New Conversation</h4>
+				</div>
+				<div class="modal-body">
+					<p>Start a conversation with...</p>
+					<div class="input-group">
+						<span class="input-group-addon" id="basic-addon1">Username</span>
+						<input type="text" class="form-control" placeholder="Username" aria-describedby="basic-addon1">
+					</div>			
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+					<button type="button" class="btn btn-success" data-dismiss="modal">Create Conversation</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<br>
+<div ng-repeat="conversation in messagesCtrl.getAllConversations()">
+	<conversation-element></conversation-element>
+</div>

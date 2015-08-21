@@ -1,0 +1,29 @@
+<shops-header></shops-header>
+<div class="row">
+	<div class="col-sm-8 col-sm-offset-2">
+		<div class="input-group">
+			<input ng-model="shopCtrl.search" type="text" class="form-control" placeholder="Search shops..." ng-change="shopCtrl.doSearch()">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" ng-click="shopCtrl.doSearch()">
+					<span class="glyphicon glyphicon-search"></span>
+				</button>
+			</span>
+		</div>
+	</div>
+</div>
+<br>
+<div class="row">
+	<div class="col-sm-4" ng-repeat="shop in shopCtrl.getShops()">
+		<div class="thumbnail">
+			<img ng-src="{{shop.image}}" alt="{{shop.name}}">
+			<div class="caption">
+				<h3>
+					{{shop.name}}<br>
+					<small>at x: {{shop.location.x}}, y: {{shop.location.y}}, z: {{shop.location.z}}</small><br>
+					<small>owned by {{shop.owner}}</small>
+				</h3>
+				<p>{{shop.description}}</p>
+			</div>
+		</div>
+	</div>
+</div>

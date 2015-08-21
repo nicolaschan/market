@@ -1,0 +1,35 @@
+<account-header></account-header>
+<div class="alert alert-danger" ng-show="profileCtrl.errorMessage">
+	<a href="javascript:void(0)" class="close" ng-click="profileCtrl.errorMessage = ''" aria-label="close">&times;</a>
+	<strong>Error!</strong> {{profileCtrl.errorMessage}}
+</div>
+<div class="alert alert-success" ng-show="profileCtrl.successMessage">
+	<a href="javascript:void(0)" class="close" ng-click="profileCtrl.successMessage = ''" aria-label="close">&times;</a>
+	<strong>Success!</strong> {{profileCtrl.successMessage}}
+</div>
+<div class="panel panel-default">
+	<div class="panel-body">
+		<div class="input-group">
+			<span class="input-group-addon" id="basic-addon1">Market Username</span>
+			<input type="text" class="form-control" placeholder="Market Username" aria-describedby="basic-addon1" value="{{profileCtrl.Username}}" disabled>
+		</div>
+		<br>
+		<div class="input-group">
+			<span class="input-group-addon" id="basic-addon1">Bank Permanent ID</span>
+			<input type="text" class="form-control" placeholder="Bank Permanent ID" aria-describedby="basic-addon1" value="#{{profileCtrl.BankId}}" disabled>
+		</div>
+		<br>
+		<div class="input-group">
+			<span class="input-group-addon" id="basic-addon1">Database ID</span>
+			<input type="text" class="form-control" placeholder="Database ID" aria-describedby="basic-addon1" value="{{profileCtrl.DatabaseId}}" disabled>
+		</div>
+		<br>
+		<div class="input-group">
+			<span class="input-group-addon" id="basic-addon1">Tagline</span>
+			<input type="text" class="form-control" placeholder="Short description of yourself" aria-describedby="basic-addon1" value="{{profileCtrl.Tagline}}" ng-model="profileCtrl.Tagline" maxlength="32">
+		</div>
+	</div>
+	<div class="panel-footer">
+		<button type="button" class="btn btn-success" ng-click="profileCtrl.updateProfile()">Update Profile</button>
+	</div>
+</div>

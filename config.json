@@ -1,0 +1,10 @@
+{
+	"taxRate": 0.05,
+	"adminId": "market",
+	"port": 8080,
+	"database": "mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market",
+	"logger": {
+		"filename": "main.log",
+		"level": "ALL"
+	}
+}

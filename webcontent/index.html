@@ -1,0 +1,28 @@
+<!doctype html>
+<html ng-app="market">
+	<head>
+		<link rel="stylesheet" href="static/lib/bootstrap.min.css"></link>
+		<script src="static/lib/jquery-1.11.3.min.js"></script>
+		<script src="static/lib/angular.min.js"></script>
+		<script src="static/lib/angular-route.min.js"></script>
+		<script src="static/js/app.js"></script>
+		<script src="static/js/pages.js"></script>
+		<script src="static/js/tabs.js"></script>
+		<script src="static/js/elements.js"></script>
+		<script src="static/lib/bootstrap.min.js"></script>
+		
+		<title>Minecraft Market</title>
+		
+		<style>
+			body {
+				padding-top: 70px;
+			}
+		</style>
+	</head>
+	<body ng-controller="contentController as contentCtrl">
+		<main-navbar></main-navbar>
+		<div id="main" class="container">
+			<div ng-view></div>
+		</div>
+	</body>
+</html>

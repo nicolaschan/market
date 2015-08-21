@@ -1,0 +1,15 @@
+<div class="jumbotron">
+	<h1>Sign In</h1>
+</div>
+<ul class="nav nav-pills" role="tablist">
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('signin') }">
+		<a href="#signin">Sign In</a>
+	</li>
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('createaccount') }">
+		<a href="#createaccount">Create Account</a>
+	</li>
+</ul>
+<div class="page-header">
+	<h1 ng-show="contentCtrl.isCurrentPage('signin')">Sign In</h1>
+	<h1 ng-show="contentCtrl.isCurrentPage('createaccount')">Create Account</h1>
+</div>

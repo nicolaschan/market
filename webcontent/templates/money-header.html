@@ -1,0 +1,19 @@
+<div class="jumbotron">
+	<h1>Money</h1>
+</div>
+<ul class="nav nav-pills" role="tablist">
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('balance') }">
+		<a href="#balance">Balance</a>
+	</li>
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('transactions') }">
+		<a href="#transactions">Transactions</a>
+	</li>
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('send') }">
+		<a href="#send">Send Money</a>
+	</li>
+</ul>
+<div class="page-header">
+	<h1 ng-show="contentCtrl.isCurrentPage('balance')">Balance <small>Money in the bank</small></h1>
+	<h1 ng-show="contentCtrl.isCurrentPage('transactions')">Transactions <small>Every transaction you ever made</small></h1>
+	<h1 ng-show="contentCtrl.isCurrentPage('send')">Send Money <small>Pay people</small></h1>
+</div>

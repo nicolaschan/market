@@ -1,0 +1,42 @@
+<users-header></users-header>
+<div class="row">
+	<div class="col-sm-8 col-sm-offset-2">
+		<div class="input-group">
+			<input ng-model="findUsersCtrl.search" type="text" class="form-control" placeholder="Search users..." ng-change="findUsersCtrl.doSearch()">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" ng-click="findUsersCtrl.doSearch()">
+					<span class="glyphicon glyphicon-search"></span>
+				</button>
+			</span>
+		</div>
+	</div>
+</div>
+<loading-icon ng-hide="findUsersCtrl.loaded"></loading-icon>
+<div class="container">
+	<div ng-show="findUsersCtrl.getAllUsers().length">
+		<h2>User Database</h2>
+		<table class="table table-hover">
+			<thead>
+				<th>Username</th>
+				<th>Bank ID</th>
+				<th>Tagline</th>
+				<th>Actions</th>
+			</thead>
+			<tbody>
+				<tr ng-repeat="user in findUsersCtrl.getAllUsers()">
+					<td>{{user.username}}</td>
+					<td>#{{user.bankid}}</td>
+					<td>{{user.tagline}}</td>
+					<td>
+						<button class="btn btn-default" type="button">
+							Send a message
+						</button>
+						<button class="btn btn-default" type="button">
+							Send money
+						</button>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</div>

@@ -1,0 +1,15 @@
+<div class="jumbotron">
+	<h1>Market</h1>
+</div>
+<ul class="nav nav-pills" role="tablist">
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('buy') }">
+		<a href="#buy">Buy Items</a>
+	</li>
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('items') }">
+		<a href="#items">My Items</a>
+	</li>
+</ul>
+<div class="page-header">
+	<h1 ng-show="contentCtrl.isCurrentPage('buy')">Buy Items <small>Browse items for sale</small></h1>
+	<h1 ng-show="contentCtrl.isCurrentPage('items')">My Items <small>All my items</small></h1>
+</div>

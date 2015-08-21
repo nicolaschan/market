@@ -1,0 +1,232 @@
+[2015-08-20 18:04:02.353] [INFO] controller - Starting market...
+[2015-08-20 18:04:02.370] [INFO] market - Starting the market...
+[2015-08-20 18:04:02.371] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:04:03.981] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:04:05.696] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:04:05.696] [INFO] market - Ready
+[2015-08-20 18:04:18.411] [INFO] market - nc99 signed in from ::1
+[2015-08-20 18:04:30.579] [INFO] market - nc99 (#nc9900) sent $10.00 to user0 (#user00)
+[2015-08-20 18:07:02.631] [INFO] controller - Starting market...
+[2015-08-20 18:07:02.655] [INFO] market - Starting the market...
+[2015-08-20 18:07:02.656] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:07:04.881] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:07:06.591] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:07:06.591] [INFO] market - Ready
+[2015-08-20 18:07:12.550] [INFO] market - nc99 signed in from ::1
+[2015-08-20 18:07:32.992] [INFO] market - nc99 signed out from ::1
+[2015-08-20 18:07:37.014] [INFO] market - user1 signed in from ::1
+[2015-08-20 18:08:03.135] [INFO] controller - Starting market...
+[2015-08-20 18:08:03.158] [INFO] market - Starting the market...
+[2015-08-20 18:08:03.158] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:08:05.220] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:08:06.960] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:08:06.961] [INFO] market - Ready
+[2015-08-20 18:08:16.541] [INFO] market - nc99 signed in from ::1
+[2015-08-20 18:08:27.550] [INFO] market - nc99 (#nc9900) purchased item 'Hello' (# item-57f60850-476c-11e5-a4a0-39eee09eba5a)
+[2015-08-20 18:10:51.997] [INFO] controller - Starting market...
+[2015-08-20 18:10:52.020] [INFO] market - Starting the market...
+[2015-08-20 18:10:52.021] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:10:54.387] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:10:56.000] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:10:56.001] [INFO] market - Ready
+[2015-08-20 18:10:59.900] [INFO] market - nc99 signed in from ::1
+[2015-08-20 18:11:13.479] [INFO] market - nc99 (#nc9900) created new item yay (#33t)
+[2015-08-20 18:11:52.968] [INFO] controller - Starting market...
+[2015-08-20 18:11:52.976] [INFO] market - Starting the market...
+[2015-08-20 18:11:52.976] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:11:54.067] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:11:54.490] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:11:54.490] [INFO] market - Ready
+[2015-08-20 18:11:58.810] [INFO] market - nc99 signed in from ::1
+[2015-08-20 18:12:14.413] [INFO] market - nc99 (#nc9900) created new item amaze (@33w)
+[2015-08-20 18:13:58.740] [INFO] controller - Starting market...
+[2015-08-20 18:13:58.747] [INFO] market - Starting the market...
+[2015-08-20 18:13:58.748] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:13:59.757] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:14:00.730] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:14:00.731] [INFO] market - Ready
+[2015-08-20 18:14:04.156] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 18:14:09.124] [INFO] market - nc99 (#nc9900) signed out from ::1
+[2015-08-20 18:20:34.669] [INFO] controller - Starting market...
+[2015-08-20 18:20:34.676] [FATAL] controller - { [ReferenceError: getLogger is not defined]
+  domain: 
+   { domain: null,
+     _events: { error: [Function] },
+     _maxListeners: undefined,
+     members: [] },
+  domainThrown: true }
+ReferenceError: getLogger is not defined
+    at Object.run (/Users/nicolas/Developer/node-projects/market/market.js:4:15)
+    at Domain.<anonymous> (/Users/nicolas/Developer/node-projects/market/index.js:42:10)
+    at Domain.run (domain.js:197:16)
+    at Object.<anonymous> (/Users/nicolas/Developer/node-projects/market/index.js:39:4)
+    at Module._compile (module.js:460:26)
+    at Object.Module._extensions..js (module.js:478:10)
+    at Module.load (module.js:355:32)
+    at Function.Module._load (module.js:310:12)
+    at Function.Module.runMain (module.js:501:10)
+    at startup (node.js:129:16)
+[2015-08-20 18:20:34.687] [WARN] controller - Market stopped, restarting in 10 seconds...
+[2015-08-20 18:21:06.519] [INFO] controller - Starting market...
+[2015-08-20 18:21:06.527] [INFO] market - Starting the market...
+[2015-08-20 18:21:06.528] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:21:07.575] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:21:07.774] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:21:07.776] [INFO] market - Ready
+[2015-08-20 18:27:53.620] [INFO] controller - Starting market...
+[2015-08-20 18:27:53.630] [INFO] market - Starting the market...
+[2015-08-20 18:27:53.630] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:27:54.649] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:27:54.844] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:27:54.845] [INFO] market - Ready
+[2015-08-20 18:28:20.231] [INFO] controller - Starting market...
+[2015-08-20 18:28:20.240] [INFO] market - Starting the market...
+[2015-08-20 18:28:21.024] [INFO] market - Ready
+[2015-08-20 18:28:31.301] [INFO] controller - Starting market...
+[2015-08-20 18:28:31.311] [INFO] market - Starting the market...
+[2015-08-20 18:28:31.312] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:28:31.578] [WARN] controller - Market stopped, restarting in 10 seconds...
+[2015-08-20 18:28:45.715] [INFO] controller - Starting market...
+[2015-08-20 18:28:45.724] [INFO] market - Starting the market...
+[2015-08-20 18:28:45.725] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:28:46.316] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:28:46.504] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:28:46.505] [INFO] market - Ready
+[2015-08-20 18:29:28.229] [INFO] controller - Starting market...
+[2015-08-20 18:29:28.253] [INFO] market - Starting the market...
+[2015-08-20 18:29:28.254] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:29:30.550] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:29:32.278] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:29:32.279] [INFO] market - Ready
+[2015-08-20 18:32:00.961] [INFO] controller - Starting market...
+[2015-08-20 18:32:01.007] [INFO] market - Market instance created
+[2015-08-20 18:32:01.009] [INFO] market - Starting the app...
+[2015-08-20 18:32:01.010] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:32:02.045] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:32:02.236] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:32:02.236] [INFO] market - Ready
+[2015-08-20 18:32:12.228] [INFO] controller - Creating and starting market...
+[2015-08-20 18:32:12.275] [INFO] market - Market instance created
+[2015-08-20 18:32:12.276] [INFO] market - Starting the app...
+[2015-08-20 18:32:12.277] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:32:12.890] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:32:13.085] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:32:13.085] [INFO] market - Ready
+[2015-08-20 18:32:41.453] [INFO] controller - Creating market...
+[2015-08-20 18:32:41.462] [INFO] market - Market instance created
+[2015-08-20 18:32:41.464] [INFO] market - Starting the app...
+[2015-08-20 18:32:41.464] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:32:42.061] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:32:42.250] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:32:42.250] [INFO] market - Ready
+[2015-08-20 18:33:24.428] [INFO] controller - Creating market...
+[2015-08-20 18:33:24.436] [INFO] market - Market instance created
+[2015-08-20 18:33:24.438] [INFO] market - Starting market app...
+[2015-08-20 18:33:24.438] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:33:25.454] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:33:25.650] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:33:25.650] [INFO] market - Market app ready
+[2015-08-20 18:34:01.271] [DEBUG] controller - Creating market...
+[2015-08-20 18:34:01.279] [DEBUG] market - Market instance created
+[2015-08-20 18:34:01.281] [INFO] market - Starting market app...
+[2015-08-20 18:34:01.281] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:34:01.884] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:34:02.078] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:34:02.078] [INFO] market - Market app ready
+[2015-08-20 18:34:32.726] [DEBUG] controller - Creating market...
+[2015-08-20 18:34:32.735] [DEBUG] market - Market instance created
+[2015-08-20 18:34:32.737] [INFO] market - Starting market app...
+[2015-08-20 18:34:32.738] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:34:33.365] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:34:33.556] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:34:33.556] [INFO] market - Market app ready
+[2015-08-20 18:35:10.610] [DEBUG] controller - Instantiating market...
+[2015-08-20 18:35:10.618] [DEBUG] market - Market instance instantiated
+[2015-08-20 18:35:10.620] [INFO] market - Starting market app...
+[2015-08-20 18:35:10.620] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:35:11.223] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:35:11.413] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:35:11.413] [INFO] market - Market app ready
+[2015-08-20 18:38:15.223] [TRACE] controller - Instantiating market...
+[2015-08-20 18:38:15.245] [TRACE] market - Market instance instantiated
+[2015-08-20 18:38:15.247] [INFO] market - Starting market app...
+[2015-08-20 18:38:15.247] [DEBUG] market - Logging at level: ALL
+[2015-08-20 18:38:17.421] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 18:38:19.156] [DEBUG] market - App listening on port 8080
+[2015-08-20 18:38:19.156] [INFO] market - Market app ready
+[2015-08-20 21:47:35.693] [TRACE] controller - Instantiating market...
+[2015-08-20 21:47:35.717] [TRACE] market - Market instance instantiated
+[2015-08-20 21:47:35.719] [INFO] market - Starting market app...
+[2015-08-20 21:47:35.719] [DEBUG] market - Logging at level: ALL
+[2015-08-20 21:47:37.935] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 21:47:40.907] [DEBUG] market - App listening on port 8080
+[2015-08-20 21:47:40.907] [INFO] market - Market app ready
+[2015-08-20 21:47:50.711] [INFO] market - Market (#market) signed in from ::1
+[2015-08-20 21:47:53.080] [INFO] market - Market (#market) signed out from ::1
+[2015-08-20 21:47:55.068] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 21:48:09.204] [INFO] market - nc99 (#nc9900) created new item 'test' (@33x)
+[2015-08-20 21:48:14.735] [INFO] market - nc99 (#nc9900) signed out from ::1
+[2015-08-20 21:48:17.500] [INFO] market - Market (#market) signed in from ::1
+[2015-08-20 21:50:09.730] [TRACE] controller - Instantiating market...
+[2015-08-20 21:50:09.738] [TRACE] market - Market instance instantiated
+[2015-08-20 21:50:09.740] [INFO] market - Starting market app...
+[2015-08-20 21:50:09.740] [DEBUG] market - Logging at level: ALL
+[2015-08-20 21:50:10.754] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 21:50:10.946] [DEBUG] market - App listening on port 8080
+[2015-08-20 21:50:10.946] [INFO] market - Market app ready
+[2015-08-20 21:50:17.102] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 21:50:30.563] [INFO] market - nc99 (#nc9900) created new item 'test2' (@33y)
+[2015-08-20 21:50:31.784] [INFO] market - nc99 (#nc9900) signed out from ::1
+[2015-08-20 21:50:34.669] [INFO] market - Market (#market) signed in from ::1
+[2015-08-20 21:51:26.101] [TRACE] controller - Instantiating market...
+[2015-08-20 21:51:26.109] [TRACE] market - Market instance instantiated
+[2015-08-20 21:51:26.111] [INFO] market - Starting market app...
+[2015-08-20 21:51:26.111] [DEBUG] market - Logging at level: ALL
+[2015-08-20 21:51:28.345] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 21:51:29.937] [DEBUG] market - App listening on port 8080
+[2015-08-20 21:51:29.937] [INFO] market - Market app ready
+[2015-08-20 21:51:35.089] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 21:51:50.825] [INFO] market - nc99 (#nc9900) created new item 'test3' (@4k3)
+[2015-08-20 21:51:54.390] [INFO] market - nc99 (#nc9900) signed out from ::1
+[2015-08-20 21:51:56.906] [INFO] market - Market (#market) signed in from ::1
+[2015-08-20 21:52:52.255] [INFO] market - Market (#market) signed out from ::1
+[2015-08-20 21:52:54.474] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 21:53:07.112] [INFO] market - nc99 (#nc9900) signed out from ::1
+[2015-08-20 21:53:09.486] [INFO] market - Market (#market) signed in from ::1
+[2015-08-20 21:53:13.886] [INFO] market - Market (#market) purchased item 'test3' (@4k3)
+[2015-08-20 21:58:48.846] [INFO] market - Market (#market) signed out from ::1
+[2015-08-20 21:58:51.219] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 21:59:50.796] [TRACE] controller - Instantiating market...
+[2015-08-20 21:59:50.815] [TRACE] market - Market instance instantiated
+[2015-08-20 21:59:50.817] [INFO] market - Starting market app...
+[2015-08-20 21:59:50.817] [DEBUG] market - Logging at level: ALL
+[2015-08-20 21:59:53.750] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 21:59:55.669] [DEBUG] market - App listening on port 8080
+[2015-08-20 21:59:55.670] [INFO] market - Market app ready
+[2015-08-20 22:00:00.637] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 22:03:34.071] [TRACE] controller - Instantiating market...
+[2015-08-20 22:03:34.079] [TRACE] market - Market instance instantiated
+[2015-08-20 22:03:34.081] [INFO] market - Starting market app...
+[2015-08-20 22:03:34.081] [DEBUG] market - Logging at level: ALL
+[2015-08-20 22:03:35.090] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 22:03:35.287] [DEBUG] market - App listening on port 8080
+[2015-08-20 22:03:35.287] [INFO] market - Market app ready
+[2015-08-20 22:03:39.313] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 22:03:41.716] [INFO] market - nc99 (#nc9900) signed out from ::1
+[2015-08-20 22:03:56.641] [INFO] market - ::1 created a new account: new_user (#awesome_bankid)
+[2015-08-20 22:04:00.266] [INFO] market - new_user (#awesome_bankid) signed in from ::1
+[2015-08-20 22:04:30.899] [INFO] market - new_user (#awesome_bankid) signed out from ::1
+[2015-08-20 22:04:50.364] [INFO] market - new_user (#awesome_bankid) signed in from ::1
+[2015-08-20 22:05:03.341] [INFO] market - new_user (#awesome_bankid) signed out from ::1
+[2015-08-20 22:05:05.438] [INFO] market - nc99 (#nc9900) signed in from ::1
+[2015-08-20 22:07:03.568] [TRACE] controller - Instantiating market...
+[2015-08-20 22:07:03.576] [TRACE] market - Market instance instantiated
+[2015-08-20 22:07:03.578] [INFO] market - Starting market app...
+[2015-08-20 22:07:03.578] [DEBUG] market - Logging at level: ALL
+[2015-08-20 22:07:05.692] [DEBUG] market - Database connection open to mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market
+[2015-08-20 22:07:07.220] [DEBUG] market - App listening on port 8080
+[2015-08-20 22:07:07.220] [INFO] market - Market app ready
+[2015-08-20 22:07:12.974] [INFO] market - new_user (#awesome_bankid) signed in from ::1
+[2015-08-20 22:07:15.638] [INFO] market - new_user (#awesome_bankid) signed out from ::1
+[2015-08-20 22:07:23.474] [INFO] market - new_user (#awesome_bankid) signed in from ::1
+[2015-08-20 22:07:26.248] [INFO] market - new_user (#awesome_bankid) signed out from ::1

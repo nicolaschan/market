@@ -1,0 +1,15 @@
+<div class="jumbotron">
+	<h1>Account</h1>
+</div>
+<ul class="nav nav-pills" role="tablist">
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('shops') }">
+		<a href="#shops">Browse Shops</a>
+	</li>
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('myshops') }">
+		<a href="#myshops">My Shops</a>
+	</li>
+</ul>
+<div class="page-header">
+	<h1 ng-show="contentCtrl.isCurrentPage('shops')">Browse Shops <small>Other player's shops</small></h1>
+	<h1 ng-show="contentCtrl.isCurrentPage('myshops')">My Shops <small>My very own shops!</small></h1>
+</div>

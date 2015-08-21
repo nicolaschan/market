@@ -1,0 +1,22 @@
+<account-header></account-header>
+<div class="alert alert-danger" ng-show="accountCtrl.errorMessage">
+	<a href="javascript:void(0)" class="close" ng-click="accountCtrl.errorMessage = ''" aria-label="close">&times;</a>
+	<strong>Error!</strong> {{accountCtrl.errorMessage}}
+</div>
+<div class="alert alert-success" ng-show="accountCtrl.successMessage">
+	<a href="javascript:void(0)" class="close" ng-click="accountCtrl.successMessage = ''" aria-label="close">&times;</a>
+	<strong>Success!</strong> {{accountCtrl.successMessage}}
+</div>
+<div class="panel panel-default">
+	<div class="panel-body">
+		<div class="input-group">
+			<span class="input-group-addon" id="basic-addon1">Change Password</span>
+			<input type="password" class="form-control" placeholder="New Password" aria-describedby="basic-addon1" ng-keypress="accountCtrl.checkPassword($event)" ng-model="accountCtrl.password">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" ng-click="accountCtrl.changePassword()">
+					<span class="glyphicon glyphicon-ok"></span>
+				</button>
+			</span>
+		</div>
+	</div>
+</div>

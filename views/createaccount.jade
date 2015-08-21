@@ -1,0 +1,54 @@
+html
+    head
+        style.
+          body {
+          padding-top: 20px;
+          }
+        
+        link(rel='stylesheet', href='static/lib/bootstrap.min.css')
+        script(src='static/lib/jquery-1.11.3.min.js')
+        script(src='static/lib/bootstrap.min.js')
+        
+        title Create Account - Minecraft Market
+
+        script.
+          $(function() {
+            if ($('#message').text().length > 0) {
+              $('#alert').show();
+              }
+            });
+          function hide_alert() {
+          $('#alert').hide();
+          }
+    body
+      .container
+        .jumbotron
+          h1 Minecraft Market
+        .ul.nav.nav-pills(role='tablist')
+          li(role='presentation')
+            a(href='signin') Sign In
+          li.active(role='presentation')
+            a(href='createaccount') Create Account
+        .page-header
+          h1 Create Account
+        .panel.panel-default
+            .panel-body
+              .alert.alert-danger#alert(style='display:none')
+                a.close(href='#', data-dismiss='alert', aria-label='close', onclick='hide_alert()') &times;
+                span#message #{message}
+              .row
+                .col-sm-4
+                .col-sm-4
+                  form(action='/createaccount', method='post')
+                    .form-group
+                      label(for='username') Username:
+                      input#username.form-control(type='text', name='username', autofocus='', value='#{username}', placeholder='3 to 16 letters, numbers, or _', maxLength=16)
+                    .form-group
+                      label(for='bankid') Choose a Permanent Bank ID:
+                      input#bankid.form-control(type='text', name='bankid', value='#{bankid}', placeholder='3 to 16 letters, numbers, or _', maxLength=16)
+                    .form-group
+                      label(for='password') Password:
+                      input#password.form-control(type='password', name='password')
+                    .form-group
+                      button.btn.btn-default(type='submit') Create Account
+                  .col-sm-4

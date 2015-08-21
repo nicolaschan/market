@@ -1,0 +1,54 @@
+<money-header></money-header>
+<div class="row">
+	<div class="col-sm-8 col-sm-offset-2">
+		<div class="input-group">
+			<input ng-model="transactionsCtrl.search" type="text" class="form-control" placeholder="Search transactions..." ng-change="transactionsCtrl.doSearch()">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" ng-click="transactionsCtrl.doSearch()">
+					<span class="glyphicon glyphicon-search"></span>
+				</button>
+			</span>
+		</div>
+	</div>
+</div>
+<loading-icon ng-hide="transactionsCtrl.loaded"></loading-icon>
+<div class="container">
+	<div ng-show="transactionsCtrl.getIncomingTransactions().length">
+		<h2>Incoming</h2>
+		<table class="table table-hover">
+			<thead>
+				<th>Amount</th>
+				<th>Sender</th>
+				<th>Memo</th>
+				<th>Timestamp</th>
+			</thead>
+			<tbody>
+				<tr ng-repeat="transaction in transactionsCtrl.getIncomingTransactions()">
+					<td>{{transaction.amount | currency}}</td>
+					<td>{{transaction.from.username}} (#{{transaction.from.bankid}})</td>
+					<td>{{transaction.memo}} <span class="glyphicon glyphicon-asterisk" ng-show="transaction.generated" title="Generated Payment"></span></td>
+					<td>{{transaction.date}}</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+	<div ng-show="transactionsCtrl.getOutgoingTransactions().length">
+	<h2>Outgoing</h2>
+		<table class="table table-hover">
+			<thead>
+				<th>Amount</th>
+				<th>Recipient</th>
+				<th>Memo</th>
+				<th>Timestamp</th>
+			</thead>
+			<tbody>
+				<tr ng-repeat="transaction in transactionsCtrl.getOutgoingTransactions()">
+					<td>{{transaction.amount | currency}}</td>
+					<td>{{transaction.to.username}} (#{{transaction.to.bankid}})</td>
+					<td>{{transaction.memo}} <span class="glyphicon glyphicon-asterisk" ng-show="transaction.generated" title="Generated Payment"></span></td>
+					<td>{{transaction.date}}</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</div>

@@ -1,0 +1,15 @@
+<div class="jumbotron">
+	<h1>Messages</h1>
+</div>
+<ul class="nav nav-pills" role="tablist">
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('recent') }">
+		<a href="#recent">New <span class="badge">{{navCtrl.getUnreadMessagesNumber()}}</span></a>
+	</li>
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('messages') }">
+		<a href="#messages">All Messages</a>
+	</li>
+</ul>
+<div class="page-header">
+	<h1 ng-show="contentCtrl.isCurrentPage('recent')">New <small>Unread messages</small></h1>
+	<h1 ng-show="contentCtrl.isCurrentPage('messages')">All Messages <small>Every message you had</small></h1>
+</div>

@@ -1,0 +1,30 @@
+<users-header></users-header>
+<div class="row">
+	<div class="col-sm-8 col-sm-offset-2">
+		<div class="input-group">
+			<input ng-model="findUsersCtrl.search" type="text" class="form-control" placeholder="Search friends..." ng-change="findUsersCtrl.doSearch()">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" ng-click="findUsersCtrl.doSearch()">
+					<span class="glyphicon glyphicon-search"></span>
+				</button>
+			</span>
+		</div>
+	</div>
+</div>
+<div class="container">
+	<div ng-show="findUsersCtrl.getFriends().length">
+		<h2>Friends</h2>
+		<table class="table table-hover">
+			<thead>
+				<th>Username</th>
+				<th>Tagline</th>
+			</thead>
+			<tbody>
+				<tr ng-repeat="user in findUsersCtrl.getFriends()">
+					<td>{{user.username}}</td>
+					<td>{{user.tagline}}</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</div>
