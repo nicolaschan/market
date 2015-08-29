@@ -21,7 +21,7 @@ You'll notice that the configuration file has an option for setting a tax rate o
 - mongodb
 
 ## Installation
-1) Create a new Mongo Database (such as a database named "market"). This database will contain all of the information for the Minecraft Mrket.
+1) Create a new Mongo Database (such as a database named "market"). This database will contain all of the information for the Minecraft Market.
 
 2) Clone the repository, navigate to it
 ```sh
