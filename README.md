@@ -29,10 +29,40 @@ $ git clone https://github.com/nicolaschan/market.git
 $ cd market
 ```
 
-3) Edit the config.json to fit your needs, the most important thing is the database IP, port, and name
+3) Edit the ```config.json``` to fit your needs, the most important thing is the database IP, port, and name. Configuration instructions are below.
 
 4) Start the app
 ```sh
 $ node index.js
 ```
 
+## Configuration
+Configuration values are specified in the ```config.json``` file. Here are the default values with descriptions.
+```js
+{
+  "port": {
+    "http": 8080, // Specifies the port to run the HTTP server on
+    "https": 8080 // Specifies the port to run the HTTPS server on (if HTTPS is enabled below)
+  },
+  "https": {
+    "enabled": false, // Enabled HTTPS (true or false)
+    "key": "keys/example.com.key", // Path to the key to use for SSL
+    "cert": "keys/example.com.crt" // Path to the SSL certificate
+  },
+  "mongodb": {
+    "host": "database.example.com", // MongoDB host URL or IP
+    "port": 27017, // Port the MongoDB is running on (default is 27017)
+    "database": "market" // Name of the database
+  },
+  "logger": {
+    "filename": "main.log", // Name of the log file (found in "logs/filename")
+    "level": "ALL" // Level of logging (options: ALL, TRACE, DEBUG, INFO, WARN, FATAL, OFF)
+  },
+  "tax": {
+    "rate": 0.05, // Transaction tax in proportion (0.05 = 5% tax)
+    "recipient": "tax" // Bank ID of the user to receive tax money
+  },
+  "admins": ["market"], // Bank IDs of users that should have admin privileges
+  "default_tagline": "A market user" // Default tagline for new users (before they change it)
+}
+```
