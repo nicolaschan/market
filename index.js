@@ -1,4 +1,10 @@
 var getLogger = function(name, level) {
+	var fs = require('fs');
+	var directory = 'logs';
+	if (!fs.existsSync(directory)) {
+		fs.mkdir(directory);
+	}
+
 	var log4js = require('log4js');
 	log4js.configure({
 		appenders: [{
