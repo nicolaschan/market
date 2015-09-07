@@ -18,15 +18,16 @@ You'll notice that the configuration file has an option for setting a tax rate o
 # How to install
 ## Requirements
 - node.js
-- mongodb
+- MongoDB
 
 ## Installation
 1) Create a new Mongo Database (such as a database named "market"). This database will contain all of the information for the Minecraft Market.
 
-2) Clone the repository, navigate to it
+2) Clone the repository, navigate to it, install dependencies
 ```sh
 $ git clone https://github.com/nicolaschan/market.git
 $ cd market
+$ npm install
 ```
 
 3) Edit the ```config.json``` to fit your needs, the most important thing is the database IP, port, and name. Configuration instructions are below.
@@ -35,7 +36,7 @@ $ cd market
 ```sh
 $ node index.js
 ```
-if running on port 80, you will probably need to use
+If running on port 80, you will probably need to use
 ```sh
 $ sudo node index.js
 ```
