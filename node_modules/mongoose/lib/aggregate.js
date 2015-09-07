@@ -1,12 +1,14 @@
+/* eslint no-unused-vars: 1 */
+
 /*!
  * Module dependencies
  */
 
-var Promise = require('./promise')
-  , util = require('util')
-  , utils = require('./utils')
-  , Query = require('./query')
-  , read = Query.prototype.read
+var util = require('util');
+var utils = require('./utils');
+var PromiseProvider = require('./promise_provider');
+var Query = require('./query');
+var read = Query.prototype.read;
 
 /**
  * Aggregate constructor used for building aggregation pipelines.
@@ -55,13 +57,13 @@ function Aggregate () {
  *
  * @param {Model} model the model to which the aggregate is to be bound
  * @return {Aggregate}
- * @api private
+ * @api public
  */
 
-Aggregate.prototype.bind = function (model) {
+Aggregate.prototype.model = function (model) {
   this._model = model;
   return this;
-}
+};
 
 /**
  * Appends new operators to this aggregate pipeline
@@ -80,8 +82,7 @@ Aggregate.prototype.bind = function (model) {
  */
 
 Aggregate.prototype.append = function () {
-  var args = utils.args(arguments)
-    , arg;
+  var args = utils.args(arguments);
 
   if (!args.every(isOperator)) {
     throw new Error("Arguments must be aggregate pipeline operators");
@@ -90,7 +91,7 @@ Aggregate.prototype.append = function () {
   this._pipeline = this._pipeline.concat(args);
 
   return this;
-}
+};
 
 /**
  * Appends a new $project operator to this aggregate pipeline.
@@ -143,7 +144,7 @@ Aggregate.prototype.project = function (arg) {
   }
 
   return this.append({ $project: fields });
-}
+};
 
 /**
  * Appends a new custom $group operator to this aggregate pipeline.
@@ -253,6 +254,9 @@ Aggregate.prototype.near = function (arg) {
 /**
  * Appends new custom $unwind operator(s) to this aggregate pipeline.
  *
+ * Note that the `$unwind` operator requires the path name to start with '$'.
+ * Mongoose will prepend '$' if the specified field doesn't start '$'.
+ *
  * ####Examples:
  *
  *     aggregate.unwind("tags");
@@ -268,9 +272,9 @@ Aggregate.prototype.unwind = function () {
   var args = utils.args(arguments);
 
   return this.append.apply(this, args.map(function (arg) {
-    return { $unwind: '$' + arg };
+    return { $unwind: (arg && arg.charAt(0) === '$') ? arg : '$' + arg };
   }));
-}
+};
 
 /**
  * Appends a new $sort operator to this aggregate pipeline.
@@ -313,7 +317,7 @@ Aggregate.prototype.sort = function (arg) {
   }
 
   return this.append({ $sort: sort });
-}
+};
 
 /**
  * Sets the readPreference option for the aggregation query.
@@ -332,6 +336,52 @@ Aggregate.prototype.read = function (pref) {
   if (!this.options) this.options = {};
   read.apply(this, arguments);
   return this;
+};
+
+/**
+ * Execute the aggregation with explain
+ *
+ * ####Example:
+ *
+ *     Model.aggregate(..).explain(callback)
+ *
+ * @param {Function} callback
+ * @return {Promise}
+ */
+
+Aggregate.prototype.explain = function (callback) {
+  var _this = this;
+  var Promise = PromiseProvider.get();
+  return new Promise.ES6(function(resolve, reject) {
+    if (!_this._pipeline.length) {
+      var err = new Error('Aggregate has empty pipeline');
+      if (callback) {
+        callback(err);
+      }
+      reject(err);
+      return;
+    }
+
+    prepareDiscriminatorPipeline(_this);
+
+    _this._model
+      .collection
+      .aggregate(_this._pipeline, _this.options || {})
+      .explain(function(error, result) {
+        if (error) {
+          if (callback) {
+            callback(error);
+          }
+          reject(error);
+          return;
+        }
+
+        if (callback) {
+          callback(null, result);
+        }
+        resolve(result);
+      });
+  });
 };
 
 /**
@@ -392,33 +442,45 @@ Aggregate.prototype.cursor = function(options) {
  */
 
 Aggregate.prototype.exec = function (callback) {
-  var promise = new Promise();
-
-  if (callback) {
-    promise.addBack(callback);
-  }
-
-  if (!this._pipeline.length) {
-    promise.error(new Error("Aggregate has empty pipeline"));
-    return promise;
-  }
-
   if (!this._model) {
-    promise.error(new Error("Aggregate not bound to any Model"));
-    return promise;
+    throw new Error("Aggregate not bound to any Model");
   }
-
-  prepareDiscriminatorPipeline(this);
 
   if (this.options && this.options.cursor) {
     return this._model.collection.aggregate(this._pipeline, this.options || {});
   }
 
-  this._model
-    .collection
-    .aggregate(this._pipeline, this.options || {}, promise.resolve.bind(promise));
+  var _this = this;
+  var Promise = PromiseProvider.get();
+  return new Promise.ES6(function(resolve, reject) {
+    if (!_this._pipeline.length) {
+      var err = new Error('Aggregate has empty pipeline');
+      if (callback) {
+        callback(err);
+      }
+      reject(err);
+      return;
+    }
 
-  return promise;
+    prepareDiscriminatorPipeline(_this);
+
+    _this._model
+      .collection
+      .aggregate(_this._pipeline, _this.options || {}, function(error, result) {
+        if (error) {
+          if (callback) {
+            callback(error);
+          }
+          reject(error);
+          return;
+        }
+
+        if (callback) {
+          callback(null, result);
+        }
+        resolve(result);
+      });
+  });
 };
 
 /*!

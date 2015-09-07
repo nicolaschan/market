@@ -73,6 +73,29 @@ var app = function(user_config) {
 	}
 	logger.trace('Configuration values are: ' + JSON.stringify(config));
 
+	var fs = require('fs');
+	var required_directories = [{
+		name: 'user-content',
+		contents: [{
+			name: 'item-images'
+		}]
+	}];
+	var create_required_directories = function(super_directory, tree) {
+		for (var i in tree) {
+			var directory = super_directory + '/' + tree[i].name;
+			if (!fs.existsSync(directory)) {
+				logger.trace('Required directory \"' + directory + '\" not found');
+				fs.mkdir(directory);
+				logger.debug('Required directory \"' + directory + '\" created');
+			}
+			if (tree[i].contents && tree[i].contents.length > 0) {
+				create_required_directories(directory, tree[i].contents);
+			}
+		}
+	};
+	create_required_directories('.', required_directories);
+
+
 	var web_server;
 	var mongoose = require('mongoose'),
 		Schema = mongoose.Schema,
@@ -90,8 +113,6 @@ var app = function(user_config) {
 
 		logger.trace('Connecting to database at ' + getDatabaseURL(config.mongodb) + '...');
 		mongoose.connect(getDatabaseURL(config.mongodb));
-
-		var fs = require('fs');
 
 		conn.once('open', function() {
 			logger.debug('Database connection open to ' + getDatabaseURL(config.mongodb));

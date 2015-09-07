@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Online market with virtual currency designed for use as a Minecraft server economy",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicolaschan/market.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
