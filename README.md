@@ -21,12 +21,7 @@ You'll notice that the configuration file has an option for setting a tax rate o
 - mongodb
 
 ## Installation
-1) Create a Mongo Database with the following collections
-- items
-- quicklinks
-- shops
-- transactions
-- users
+1) Create a new Mongo Database (such as a database named "market"). This database will contain all of the information for the Minecraft Market.
 
 2) Clone the repository, navigate to it
 ```sh
@@ -34,7 +29,7 @@ $ git clone https://github.com/nicolaschan/market.git
 $ cd market
 ```
 
-3) Edit the config.json to fit your needs, the most important thing is the database URL
+3) Edit the config.json to fit your needs, the most important thing is the database IP, port, and name
 
 4) Start the app
 ```sh
