@@ -1,4 +1,4 @@
 keys/*
 logs/*
-node_modules/*
+node_modules
 user-content/*
