@@ -1,10 +1,26 @@
 {
-	"taxRate": 0.05,
-	"adminId": "market",
-	"port": 8080,
-	"database": "mongodb://ec2-52-7-5-216.compute-1.amazonaws.com/market",
+	"port": {
+		"http": 8080,
+		"https": 8080
+	},
+	"https": {
+		"enabled": true,
+		"key": "keys/*.nc99.co.key",
+		"cert": "keys/*.nc99.co.crt"
+	},
+	"mongodb": {
+		"host": "10.0.1.100",
+		"port": 27017,
+		"database": "market"
+	},
 	"logger": {
 		"filename": "main.log",
 		"level": "ALL"
-	}
+	},
+	"tax": {
+		"rate": 0.05,
+		"recipient": "tax"
+	},
+	"admins": ["market"],
+	"default_tagline": "A market user"
 }

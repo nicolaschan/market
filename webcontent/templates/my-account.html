@@ -10,6 +10,16 @@
 <div class="panel panel-default">
 	<div class="panel-body">
 		<div class="input-group">
+			<span class="input-group-addon" id="basic-addon1">Change Username</span>
+			<input type="text" class="form-control" placeholder="{{contentCtrl.globalValues.username}}" aria-describedby="basic-addon1" ng-keypress="accountCtrl.checkUsername($event)" ng-model="accountCtrl.username" maxlength="16">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" ng-click="accountCtrl.changeUsername()">
+					<span class="glyphicon glyphicon-ok"></span>
+				</button>
+			</span>
+		</div>
+		<br>
+		<div class="input-group">
 			<span class="input-group-addon" id="basic-addon1">Change Password</span>
 			<input type="password" class="form-control" placeholder="New Password" aria-describedby="basic-addon1" ng-keypress="accountCtrl.checkPassword($event)" ng-model="accountCtrl.password">
 			<span class="input-group-btn">

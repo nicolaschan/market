@@ -17,7 +17,7 @@
 			<br>
 			<div class="input-group">
 				<span class="input-group-addon">$</span>
-				<input type="number" class="form-control" min="0" placeholder="Amount" ng-model="sendMoneyCtrl.amount">
+				<input type="number" class="form-control" min="0" max="{{contentCtrl.globalValues.balance}}" placeholder="Amount" ng-model="sendMoneyCtrl.amount">
 			</div>
 			<br>
 			<div class="input-group">
@@ -38,7 +38,7 @@
 				</div>
 				<div class="modal-body">
 					<p>Are you sure you want to pay <strong>{{sendMoneyCtrl.getTotal() | currency}}</strong>?</p>
-					<p>{{sendMoneyCtrl.recipient}} will recieve <strong>{{sendMoneyCtrl.amount | currency}}</strong> and the Market will recieve a <strong>{{sendMoneyCtrl.getTax() | currency}} ({{sendMoneyCtrl.taxRate * 100 + '%'}})</strong> tax.</p>				
+					<p>{{sendMoneyCtrl.recipient}} will recieve <strong>{{sendMoneyCtrl.amount | currency}}</strong> and the Market will recieve a <strong>{{sendMoneyCtrl.getTax() | currency}} ({{contentCtrl.globalValues.taxRate * 100 + '%'}})</strong> tax.</p>				
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>

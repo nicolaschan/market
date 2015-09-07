@@ -1,0 +1,13 @@
+<admin-header></admin-header>
+<div class="container">
+	<loading-icon ng-hide="adminLogsCtrl.loaded"></loading-icon>
+	<div class="well well-sm" ng-show="adminLogsCtrl.lines.length">
+		<span ng-repeat="line in adminLogsCtrl.lines track by $index">{{line}}<br></span>
+	</div>
+	<a href="/data?page=admin-logs-download" download="market.log">
+	<button type="button" class="btn btn-default btn-lg">
+		<span class="glyphicon glyphicon-download-alt"></span> Download Full Log
+	</button>
+	</a>
+</div>
+<br>

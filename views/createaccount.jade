@@ -24,7 +24,7 @@ html
       .container
         .jumbotron
           h1 Minecraft Market
-        .ul.nav.nav-pills(role='tablist')
+        .ul.nav.nav-tabs(role='tablist')
           li(role='presentation')
             a(href='signin') Sign In
           li.active(role='presentation')
@@ -48,7 +48,7 @@ html
                       input#bankid.form-control(type='text', name='bankid', value='#{bankid}', placeholder='3 to 16 letters, numbers, or _', maxLength=16)
                     .form-group
                       label(for='password') Password:
-                      input#password.form-control(type='password', name='password')
+                      input#password.form-control(type='password', name='password', placeholder="Choose a password")
                     .form-group
                       button.btn.btn-default(type='submit') Create Account
                   .col-sm-4

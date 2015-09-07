@@ -1,7 +1,7 @@
 <div class="jumbotron">
 	<h1>Account</h1>
 </div>
-<ul class="nav nav-pills" role="tablist">
+<ul class="nav nav-tabs" role="tablist">
 	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('profile') }">
 		<a href="#profile">My Profile</a>
 	</li>
@@ -10,6 +10,6 @@
 	</li>
 </ul>
 <div class="page-header">
-	<h1 ng-show="contentCtrl.isCurrentPage('profile')">My Profile <small>What others see of me</small></h1>
-	<h1 ng-show="contentCtrl.isCurrentPage('account')">My Account <small>Account settings</small></h1>
+	<h1 ng-show="contentCtrl.isCurrentPage('profile')">My Profile</h1>
+	<h1 ng-show="contentCtrl.isCurrentPage('account')">My Account</h1>
 </div>

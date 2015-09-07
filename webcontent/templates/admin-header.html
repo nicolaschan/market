@@ -1,0 +1,11 @@
+<div class="jumbotron">
+	<h1>Admin Controls</h1>
+</div>
+<ul class="nav nav-tabs" role="tablist">
+	<li role="presentation" ng-class="{ active: contentCtrl.isCurrentPage('admin/logs') }">
+		<a href="#admin/logs">Logs</a>
+	</li>
+</ul>
+<div class="page-header">
+	<h1 ng-show="contentCtrl.isCurrentPage('admin/logs')">Logs</h1>
+</div>

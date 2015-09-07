@@ -22,7 +22,7 @@
 					<p>Add a new item to the market.</p>
 					<div class="input-group">
 						<span class="input-group-addon" id="basic-addon1">Name</span>
-						<input type="text" class="form-control" placeholder="Item name" aria-describedby="basic-addon1" ng-model="sellItemsCtrl.listingItem.name" maxlength="64">
+						<input type="text" class="form-control" placeholder="Item name" aria-describedby="basic-addon1" ng-model="sellItemsCtrl.listingItem.name" maxlength="32">
 					</div>
 					<br>
 					<div class="input-group">
@@ -45,6 +45,10 @@
 						<input type="text" class="form-control" min="1" placeholder="Information for the buyer once purchased (coords, etc.)" ng-model="sellItemsCtrl.listingItem.instructions" maxlength="140">
 					</div>
 					<br>
+					<div class="input-group">
+						<span class="input-group-addon">Image</span>
+						<input id="image" type="file" class="form-control" fileread="sellItemsCtrl.listingItem.image" accept="image/png,image/jpg">
+					</div>
 					<div class="checkbox">
 						<label>
 							<input type="checkbox" ng-model="sellItemsCtrl.listingItem.forSale">For Sale</input>
@@ -63,8 +67,8 @@
 <br>
 <div class="row">
 	<div class="col-sm-4" ng-repeat="item in sellItemsCtrl.getItems()">
-		<div class="thumbnail">
-			<img ng-src="{{item.image}}" alt="{{item.name}}">
+		<div class="thumbnail" style="word-wrap:break-word;">
+			<img ng-src="{{contentCtrl.imageLink(item.image)}}" alt="{{item.name}}">
 			<div class="caption">
 				<h3>
 					{{item.name}}
@@ -113,7 +117,7 @@
 								<p>Edit your item.</p>
 								<div class="input-group">
 									<span class="input-group-addon" id="basic-addon1">Name</span>
-									<input type="text" class="form-control" placeholder="Item name" aria-describedby="basic-addon1" ng-model="sellItemsCtrl.editingItem.name" maxlength="64">
+									<input type="text" class="form-control" placeholder="Item name" aria-describedby="basic-addon1" ng-model="sellItemsCtrl.editingItem.name" maxlength="32">
 								</div>
 								<br>
 								<div class="input-group">
@@ -136,6 +140,10 @@
 									<input type="text" class="form-control" min="1" placeholder="Information for the buyer once purchased (coords, etc.)" ng-model="sellItemsCtrl.editingItem.instructions" maxlength="140">
 								</div>
 								<br>
+								<div class="input-group">
+									<span class="input-group-addon">Image</span>
+									<input id="image" type="file" class="form-control" fileread="sellItemsCtrl.editingItem.image" accept="image/png,image/jpg">
+								</div>
 								<div class="checkbox">
 									<label>
 										<input type="checkbox" ng-model="sellItemsCtrl.editingItem.forSale">For Sale</input>

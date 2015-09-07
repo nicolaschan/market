@@ -1,0 +1,93 @@
+<market-header></market-header>
+<div class="row">
+	<div class="col-sm-8 col-sm-offset-2">
+		<div class="input-group">
+			<input ng-model="receiptsCtrl.search" type="text" class="form-control" placeholder="Search receipts..." ng-change="receiptsCtrl.doSearch()">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" ng-click="receiptsCtrl.doSearch()">
+					<span class="glyphicon glyphicon-search"></span>
+				</button>
+			</span>
+		</div>
+	</div>
+</div>
+<loading-icon ng-hide="receiptsCtrl.loaded"></loading-icon>
+<div class="container">
+	<div ng-show="receiptsCtrl.getIncomingReceipts().length">
+		<h2>My Purchases</h2>
+		<table class="table table-hover">
+			<thead>
+				<th>Item</th>
+				<th>Quantity</th>
+				<th>Seller</th>
+				<th>Proof of Purchase</th>
+				<th>Timestamp</th>
+				<th>Actions</th>
+			</thead>
+			<tbody>
+				<tr ng-repeat="receipt in receiptsCtrl.getIncomingReceipts()">
+					<td>{{receipt.item.name}}</td>
+					<td>{{receipt.item.quantity}}</td>
+					<td>{{receipt.seller.username}} (#{{receipt.seller.bankid}})</td>
+					<td>{{receipt.proof}}</span></td>
+					<td>{{receipt.date}}</td>
+					<td>
+						<button class="btn btn-default btn-sm" type="button" ng-click="receiptsCtrl.showModal(receipt)">
+							<span class="glyphicon glyphicon-info-sign"></span> Details
+						</button>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+	<div ng-show="receiptsCtrl.getOutgoingReceipts().length">
+	<h2>My Sales</h2>
+		<table class="table table-hover">
+			<thead>
+				<th>Item</th>
+				<th>Quantity</th>
+				<th>Buyer</th>
+				<th>Proof of Purchase</th>
+				<th>Timestamp</th>
+				<th>Actions</th>
+			</thead>
+			<tbody>
+				<tr ng-repeat="receipt in receiptsCtrl.getOutgoingReceipts()">
+					<td>{{receipt.item.name}}</td>
+					<td>{{receipt.item.quantity}}</td>
+					<td>{{receipt.buyer.username}} (#{{receipt.buyer.bankid}})</td>
+					<td>{{receipt.proof}}</span></td>
+					<td>{{receipt.date}}</td>
+					<td>
+						<button class="btn btn-default btn-sm" type="button" ng-click="receiptsCtrl.showModal(receipt)">
+							<span class="glyphicon glyphicon-info-sign"></span> Details
+						</button>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</div>
+<div id="receiptInfoModal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Receipt Info</h4>
+			</div>
+			<div class="modal-body">
+				<strong>Item</strong> {{receiptsCtrl.currentReceipt.item.name}}<br>
+				<strong>Quantity</strong> {{receiptsCtrl.currentReceipt.item.quantity}}<br>
+				<strong>Description</strong> {{receiptsCtrl.currentReceipt.item.description}}<br>
+				<strong>Instructions</strong> {{receiptsCtrl.currentReceipt.item.instructions}}<br>
+				<strong>Proof</strong> {{receiptsCtrl.currentReceipt.proof}}<br>
+				<strong>Buyer</strong> {{receiptsCtrl.currentReceipt.buyer.username}} (#{{receiptsCtrl.currentReceipt.buyer.bankid}})<br>
+				<strong>Seller</strong> {{receiptsCtrl.currentReceipt.seller.username}} (#{{receiptsCtrl.currentReceipt.seller.bankid}})<br>
+				<strong>Timestamp</strong> {{receiptsCtrl.currentReceipt.date}}
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>

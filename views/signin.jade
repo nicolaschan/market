@@ -23,7 +23,7 @@ html
       .container
         .jumbotron
           h1 Minecraft Market
-        .ul.nav.nav-pills(role='tablist')
+        .ul.nav.nav-tabs(role='tablist')
           li.active(role='presentation')
             a(href='signin') Sign In
           li(role='presentation')
@@ -41,10 +41,10 @@ html
                   form(action='/signin', method='post')
                     .form-group
                       label(for='username') Username or #Bank ID:
-                      input#username.form-control(type='text', name='username', autofocus='', maxLength=16)
+                      input#username.form-control(type='text', name='username', autofocus='', maxLength=16, placeholder="Username or #Bank ID")
                     .form-group
                       label(for='password') Password:
-                      input#password.form-control(type='password', name='password')
+                      input#password.form-control(type='password', name='password', placeholder="Password")
                      .form-group
                       button.btn.btn-default(type='submit') Sign In
                   .col-sm-4

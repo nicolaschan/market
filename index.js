@@ -24,10 +24,10 @@ if (cluster.isMaster) {
 	cluster.fork();
 
 	cluster.on('disconnect', function(worker) {
-		logger.warn('Market stopped, restarting in 10 seconds...');
+		logger.warn('Market stopped, restarting in 1 second...');
 		setTimeout(function() {
 			cluster.fork();
-		}, 10000);
+		}, 1000);
 	});
 } else {
 	var domain = require('domain');
@@ -37,12 +37,14 @@ if (cluster.isMaster) {
 		cluster.worker.disconnect();
 	});
 	d.run(function() {
-		logger.trace('Instantiating market...');
+		logger.trace('Instantiating market app...');
+
 		var config = require('./config.json');
-		var market_creator = require('./market');
-		var market = new market_creator.market(config);
+
+		var market = require('./market');
+		var app = market.createApp(config);
 
 		logger.trace('Starting market app...');
-		market.start();
+		app.start();
 	});
 }

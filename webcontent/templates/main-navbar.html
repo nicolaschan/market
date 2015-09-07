@@ -17,6 +17,7 @@
 					<ul class="dropdown-menu">
 						<li><a href="#buy">Buy Items</a></li>
 						<li><a href="#items">My Items</a></li>
+						<li><a href="#receipts">Receipts</a></li>
 					</ul>
 				</li>
 				<li class="dropdown">
@@ -42,7 +43,7 @@
 			
 			<li ng-class="{ active:navCtrl.isCurrentPageByIndex(3) }">
 				<a href="#balance">
-					{{navCtrl.balance | currency}}
+					{{contentCtrl.globalValues.balance | currency}}
 				</a>
 			</li>
 			<!--<li ng-class="{ active:navCtrl.isCurrentPageByIndex(3) }">
@@ -51,10 +52,11 @@
 									</a>
 			</li>-->
 			<li class="dropdown">
-				<a class="dropdown-toggle" data-toggle="dropdown" href="#" onClick="return false;"><span class="glyphicon glyphicon-user"></span> {{navCtrl.username}} <span class="caret"></span></a>
+				<a class="dropdown-toggle" data-toggle="dropdown" href="#" onClick="return false;"><span class="glyphicon glyphicon-user"></span> {{contentCtrl.globalValues.username}} <span class="caret"></span></a>
 				<ul class="dropdown-menu">
 					<li><a href="#profile">My Profile</a></li>
 					<li><a href="#account">My Account</a></li>
+					<li ng-show="contentCtrl.globalValues.isAdmin"><a href="#admin/logs">Admin Controls</a></li>
 					<li><a href="/signout"><span class="glyphicon glyphicon-log-out"></span> Sign Out</a></li>
 				</ul>
 			</li>
@@ -63,52 +65,54 @@
 </div>
 </nav>
 <div id="quicklinkModal" class="modal fade" role="dialog">
-<div class="modal-dialog">
-	<div class="modal-content">
-		<div class="modal-header">
-			<button type="button" class="close" data-dismiss="modal">&times;</button>
-			<h4 class="modal-title">Quicklink Action: <span ng-show="navCtrl.quicklinkData.item">Purchase Item</span><span ng-show="navCtrl.quicklinkData.payment">Send Money</span></h4>
-		</div>
-		<div class="modal-body">
-			<span ng-show="navCtrl.quicklinkData.item">
-				<div class="thumbnail">
-					<img ng-src="{{navCtrl.quicklinkData.item.image}}" alt="{{navCtrl.quicklinkData.item.name}}">
-					<div class="caption">
-						<h3>
-						{{navCtrl.quicklinkData.item.name}}<br><small>by {{navCtrl.quicklinkData.item.owner}}</small>
-						</h3>
-						<p>{{navCtrl.quicklinkData.item.description}}</p>
-					</div>
-				</span>
-				<span ng-show="navCtrl.quicklinkData.payment">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Quicklink Action: <span ng-show="navCtrl.quicklinkData.item">Purchase Item</span><span ng-show="navCtrl.quicklinkData.payment">Send Money</span></h4>
+			</div>
+			<div class="modal-body">
+				<span ng-show="navCtrl.quicklinkData.item">
+					<div class="thumbnail">
+						<img ng-src="{{navCtrl.quicklinkData.item.image}}" alt="{{navCtrl.quicklinkData.item.name}}">
+						<div class="caption">
+							<h3>
+							{{navCtrl.quicklinkData.item.name}}<br><small>by {{navCtrl.quicklinkData.item.owner}}</small>
+							</h3>
+							<p>{{navCtrl.quicklinkData.item.description}}</p>
+						</div>
+					</span>
+					<span ng-show="navCtrl.quicklinkData.payment">
 					
-				</span>
+					</span>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+					<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="navCtrl.modalConfirm()">
+					Pay
+					<span ng-show="navCtrl.quicklinkData.item">{{navCtrl.getTotal(navCtrl.quicklinkData.item.price) | currency}}</span>
+					<span ng-show="navCtrl.quicklinkData.payment">{{navCtrl.getTotal(navCtrl.quicklinkData.payment.amount)} | currency}</span>
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</span>
+</div>
+<div id="quicklinkResponseModal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title"><span ng-show="navCtrl.successMessage">Success!</span><span ng-show="navCtrl.errorMessage">Error!</span></h4>
+			</div>
+			<div class="modal-body">
+				<span ng-show="navCtrl.successMessage">{{navCtrl.successMessage}}</span>
+				<span ng-show="navCtrl.errorMessage">{{navCtrl.errorMessage}}</span>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-				<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="navCtrl.modalConfirm()">
-				Pay
-				<span ng-show="navCtrl.quicklinkData.item">{{navCtrl.getTotal(navCtrl.quicklinkData.item.price) | currency}}</span>
-				<span ng-show="navCtrl.quicklinkData.payment">{{navCtrl.getTotal(navCtrl.quicklinkData.payment.amount)} | currency}</span>
-				</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
 			</div>
 		</div>
 	</div>
 </div>
-</span></div>
-<div id="quicklinkResponseModal" class="modal fade" role="dialog">
-<div class="modal-dialog">
-	<div class="modal-content">
-		<div class="modal-header">
-			<button type="button" class="close" data-dismiss="modal">&times;</button>
-			<h4 class="modal-title"><span ng-show="navCtrl.successMessage">Success!</span><span ng-show="navCtrl.errorMessage">Error!</span></h4>
-		</div>
-		<div class="modal-body">
-			<span ng-show="navCtrl.successMessage">{{navCtrl.successMessage}}</span>
-			<span ng-show="navCtrl.errorMessage">{{navCtrl.errorMessage}}</span>
-		</div>
-		<div class="modal-footer">
-			<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-		</div>
-	</div>
-</div></div>

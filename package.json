@@ -13,13 +13,16 @@
     "connect-flash": "^0.1.1",
     "express": "^4.13.1",
     "express-session": "^1.11.3",
+    "httpolyglot": "^0.1.1",
     "jade": "^1.11.0",
+    "line-by-line": "^0.1.4",
     "log4js": "^0.6.26",
     "mongoose": "^4.0.8",
     "node-uuid": "^1.4.3",
     "passport": "^0.2.2",
     "passport-local": "^1.0.0",
     "password-hash-and-salt": "^0.1.2",
-    "random-to": "0.0.2"
+    "random-to": "0.0.2",
+    "shortid": "^2.2.2"
   }
 }

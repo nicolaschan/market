@@ -1,7 +1,32 @@
 (function() {
 	var app = angular.module('market', ['elements', 'ngRoute']);
 
+	var error_messages = {
+		communication_error: 'Communication error with server'
+	};
+
+	var global_values = {
+		username: '',
+		balance: 0,
+		taxRate: 0,
+		isAdmin: false
+	};
+
 	var updaters = {};
+
+	var displayCurrency = function(amount) {
+		amount = amount.toLocaleString();
+		if (amount.indexOf('.') > -1) {
+			var characters_after_dot_length = amount.substring(amount.indexOf('.')).length - 1;
+			while (characters_after_dot_length < 2) {
+				characters_after_dot_length++;
+				amount += '0';
+			}
+			return '$' + amount;
+		} else {
+			return '$' + amount.toString() + '.00';
+		}
+	};
 
 	var current_route;
 	app.run(['$rootScope', '$location', '$window', '$routeParams', function($rootScope, $location, $window, $routeParams) {
@@ -23,14 +48,11 @@
 					this.allItems = [];
 					this.items = this.allItems;
 
-					this.taxRate = 0;
-					this.balance = 0;
+					this.quantity = 1;
 
 					this.loaded = false;
 					updaters.buy = function() {
 						$http.get('/data?page=buy').then(function(response) {
-							store.taxRate = response.data.taxRate;
-							store.balance = response.data.balance;
 							store.allItems = response.data.items;
 							store.items = response.data.items;
 							store.loaded = true;
@@ -48,7 +70,7 @@
 						this.items = [];
 						for (var i in this.allItems) {
 							var found = true;
-							var pieces = this.allItems[i].name.toLowerCase() + this.allItems[i].description.toLowerCase() + this.allItems[i].owner.toLowerCase() + this.allItems[i].price;
+							var pieces = this.allItems[i].name.toLowerCase() + ' ' + this.allItems[i].description.toLowerCase() + ' ' + this.allItems[i].owner.toLowerCase() + ' ' + displayCurrency(store.getTotal(this.allItems[i].price));
 							var query = this.search.toLowerCase().split(' ');
 							for (var j in query) {
 								if (!(pieces.includes(query[j]))) {
@@ -61,27 +83,31 @@
 						}
 					};
 					this.getTax = function(amount) {
-						return Math.ceil(amount * store.taxRate * 100) / 100;
+						return Math.ceil(amount * global_values.taxRate * 100) / 100;
 					};
 					this.getTotal = function(amount) {
 						return this.getTax(amount) + amount;
 					};
+					this.getTotalWithQuantity = function(amount) {
+						return this.getTotal(amount) * store.quantity;
+					};
 					this.enoughFunds = function(price) {
-						if (this.getTotal(price) <= this.balance) {
+						if (this.getTotal(price) <= global_values.balance) {
 							return true;
 						} else {
 							return false;
 						}
 					};
 					this.getBalanceAfter = function(amount) {
-						return this.balance - amount;
+						return global_values.balance - amount;
 					};
 
 					this.buy = function(item) {
 						$http.post('/', {
 							page: 'buy',
 							data: {
-								item: item
+								item: item,
+								quantity: store.quantity
 							}
 						}).then(function(response) {
 							if (response.data.success) {
@@ -94,7 +120,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 						});
 					};
 				},
@@ -148,6 +174,7 @@
 						price: 0,
 						quantity: 1,
 						instructions: '',
+						image: '',
 						forSale: false
 					};
 
@@ -161,6 +188,7 @@
 							price: 0,
 							quantity: 1,
 							instructions: '',
+							image: '',
 							forSale: false
 						};
 
@@ -181,7 +209,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 						});
 					};
 					this.deleteItem = function(itemId) {
@@ -201,7 +229,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 						});
 					};
 
@@ -223,7 +251,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 						});
 					};
 					this.setEditingItem = function(item) {
@@ -232,17 +260,90 @@
 				},
 				controllerAs: 'sellItemsCtrl'
 			})
-			.when('/balance', {
-				templateUrl: 'static/templates/balance-tab.html',
+			.when('/receipts', {
+				templateUrl: 'static/templates/my-receipts.html',
 				controller: function($http) {
 					var store = this;
 
-					this.balance = null;
-					$http.get('/data?page=balance').then(function(response) {
-						store.balance = response.data.balance;
+					this.search = '';
+
+					this.allReceipts = [];
+					this.receipts = this.allReceipts;
+
+					this.loaded = false;
+					$http.get('/data?page=receipts').then(function(response) {
+						store.allReceipts = response.data.receipts;
+						store.receipts = response.data.receipts;
+						store.loaded = true;
 					});
+
+					this.currentReceipt = null;
+					this.showModal = function(receipt) {
+						this.currentReceipt = receipt;
+						$('#receiptInfoModal').modal('show');
+					};
+
+					this.isIncoming = function(receipt) {
+						if (receipt.buyer.username === global_values.username) {
+							return true;
+						} else {
+							return false;
+						}
+					};
+					this.isOutgoing = function(receipt) {
+						if (receipt.seller.username === global_values.username) {
+							return true;
+						} else {
+							return false;
+						}
+					};
+
+					this.doSearch = function() {
+						this.receipts = [];
+						for (var i in this.allReceipts) {
+							var found = true;
+							var pieces = this.allReceipts[i].item.name.toLowerCase() + ' ' + this.allReceipts[i].date.toLowerCase() + ' ' + this.allReceipts[i].item.quantity.toString().toLowerCase() + ' ' + this.allReceipts[i].proof.toString().toLowerCase();
+							if (this.isIncoming(this.allReceipts[i])) {
+								pieces += ' ' + 'purchases' + ' ' + this.allReceipts[i].seller.username.toLowerCase() + ' #' + this.allReceipts[i].seller.bankid.toLowerCase();
+							} else {
+								pieces += ' ' + 'sales' + ' ' + this.allReceipts[i].buyer.username.toLowerCase() + ' #' + this.allReceipts[i].buyer.bankid.toLowerCase();
+							}
+							var query = this.search.toLowerCase().split(' ');
+
+							for (var j in query) {
+								if (!(pieces.includes(query[j]))) {
+									found = false;
+								}
+							}
+							if (found) {
+								this.receipts.push(this.allReceipts[i]);
+							}
+						}
+					};
+
+					this.getIncomingReceipts = function() {
+						var output = [];
+						for (var i in this.receipts) {
+							if (this.isIncoming(this.receipts[i])) {
+								output.push(this.receipts[i]);
+							}
+						}
+						return output;
+					};
+					this.getOutgoingReceipts = function() {
+						var output = [];
+						for (var i in this.receipts) {
+							if (this.isOutgoing(this.receipts[i])) {
+								output.push(this.receipts[i]);
+							}
+						}
+						return output;
+					};
 				},
-				controllerAs: 'balanceCtrl'
+				controllerAs: 'receiptsCtrl'
+			})
+			.when('/balance', {
+				templateUrl: 'static/templates/balance-tab.html'
 			})
 			.when('/transactions', {
 				templateUrl: 'static/templates/transactions-tab.html',
@@ -251,27 +352,25 @@
 
 					this.search = '';
 
-					this.username = '';
 					this.allTransactions = [];
 					this.transactions = this.allTransactions;
 
 					this.loaded = false;
 					$http.get('/data?page=transactions').then(function(response) {
-						store.username = response.data.username;
 						store.allTransactions = response.data.transactions;
 						store.transactions = response.data.transactions;
 						store.loaded = true;
 					});
 
 					this.isIncoming = function(transaction) {
-						if (transaction.to.username === this.username) {
+						if (transaction.to.username === global_values.username) {
 							return true;
 						} else {
 							return false;
 						}
 					};
 					this.isOutgoing = function(transaction) {
-						if (transaction.from.username === this.username) {
+						if (transaction.from.username === global_values.username) {
 							return true;
 						} else {
 							return false;
@@ -282,7 +381,7 @@
 						this.transactions = [];
 						for (var i in this.allTransactions) {
 							var found = true;
-							var pieces = this.allTransactions[i].amount.toString().toLowerCase() + ' ' + this.allTransactions[i].date.toLowerCase() + ' ' + this.allTransactions[i].memo.toLowerCase();
+							var pieces = displayCurrency(this.allTransactions[i].amount) + ' ' + this.allTransactions[i].date.toLowerCase() + ' ' + this.allTransactions[i].memo.toLowerCase();
 							if (this.isIncoming(this.allTransactions[i])) {
 								pieces += ' ' + 'incoming' + ' ' + this.allTransactions[i].from.username.toLowerCase() + ' #' + this.allTransactions[i].from.bankid.toLowerCase();
 							} else {
@@ -330,22 +429,13 @@
 				controller: function($http) {
 					var store = this;
 
-					this.taxRate = 0;
-					this.balance = 0;
-
 					this.amount = '';
 
 					this.recipient = '';
 					this.memo = '';
 
-					$http.get('/data?page=send').then(function(response) {
-						store.taxRate = response.data.taxRate;
-						store.balance = response.data.balance;
-					});
-
-
 					this.getTax = function() {
-						return Math.ceil(parseFloat(this.amount) * this.taxRate * 100) / 100;
+						return Math.ceil(parseFloat(this.amount) * global_values.taxRate * 100) / 100;
 					};
 					this.getTotal = function() {
 						return parseFloat(this.amount) + this.getTax();
@@ -375,7 +465,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 						});
 
 						this.amount = '';
@@ -408,7 +498,7 @@
 							}
 						};
 
-						if (valid_amount(this.amount) && valid_recipient(this.recipient) && enough_funds(this.balance, this.getTotal())) {
+						if (valid_amount(this.amount) && valid_recipient(this.recipient) && enough_funds(global_values.balance, this.getTotal())) {
 							return true;
 						} else {
 							return false;
@@ -552,27 +642,30 @@
 					this.users = this.allUsers;
 
 					this.loaded = false;
-					$http.get('/data?page=find').then(function(response) {
-						store.allUsers = response.data;
-						store.users = response.data;
-						store.loaded = true;
-					});
 
-					this.isIncoming = function(transaction) {
-						if (transaction.sender) {
-							return true;
-						} else {
-							return false;
-						}
+					updaters.find = function() {
+						$http.get('/data?page=find').then(function(response) {
+							store.allUsers = response.data;
+							store.users = response.data;
+							store.loaded = true;
+							store.doSearch();
+						});
 					};
+					updaters.find();
 
 					this.doSearch = function() {
 						this.users = [];
 						for (var i in this.allUsers) {
 							var found = true;
-							var pieces = this.allUsers[i].username.toLowerCase() + ' ' + this.allUsers[i].bankid.toLowerCase() + ' ' + this.allUsers[i].tagline.toLowerCase();
+							var pieces = this.allUsers[i].username.toLowerCase() + ' #' + this.allUsers[i].bankid.toLowerCase() + ' ' + this.allUsers[i].tagline.toLowerCase() + ' ' + displayCurrency(this.allUsers[i].balance);
 							if (this.allUsers[i].friend) {
 								pieces += ' ' + 'friend';
+							}
+							if (this.allUsers[i].trusted) {
+								pieces += ' ' + 'trusted';
+							}
+							if (this.allUsers[i].taxExempt) {
+								pieces += ' ' + 'tax exempt';
 							}
 							var query = this.search.toLowerCase().split(' ');
 
@@ -590,6 +683,89 @@
 					this.getAllUsers = function() {
 						return this.users;
 					};
+
+					this.errorMessage = '';
+					this.successMessage = '';
+
+					this.modalUser = null;
+					this.newValues = {
+						username: null,
+						bankid: null,
+						balance: null,
+						tagline: null,
+						password: null,
+						trusted: false,
+						taxExempt: false
+					};
+
+					this.showModal = function(user) {
+						this.modalUser = user;
+						this.newValues.trusted = user.trusted;
+						this.newValues.taxExempt = user.taxExempt;
+						$('#editUserModal').modal('show');
+					};
+					this.submitChanges = function() {
+						var newValues = this.newValues;
+						this.newValues = {
+							username: null,
+							bankid: null,
+							balance: null,
+							tagline: null,
+							password: null,
+							trusted: false,
+							taxExempt: false
+						};
+						$http.post('/', {
+							page: 'find-edit',
+							data: {
+								id: this.modalUser.id,
+								newValues: newValues
+							}
+						}).then(function(response) {
+							if (response.data.success) {
+								store.errorMessage = '';
+								store.successMessage = 'Updated user';
+								updaters.find();
+							} else {
+								store.successMessage = '';
+								store.errorMessage = response.data.message;
+							}
+						}, function(response) {
+							store.successMessage = '';
+							store.errorMessage = error_messages.communication_error;
+						});
+					};
+
+					this.deleteUser = function() {
+						var newValues = this.newValues;
+						this.newValues = {
+							username: null,
+							bankid: null,
+							balance: null,
+							tagline: null,
+							password: null,
+							trusted: false,
+							taxExempt: false
+						};
+						$http.post('/', {
+							page: 'find-delete',
+							data: {
+								id: this.modalUser.id
+							}
+						}).then(function(response) {
+							if (response.data.success) {
+								store.errorMessage = '';
+								store.successMessage = 'User deleted';
+								updaters.find();
+							} else {
+								store.successMessage = '';
+								store.errorMessage = response.data.message;
+							}
+						}, function(response) {
+							store.successMessage = '';
+							store.errorMessage = error_messages.communication_error;
+						});
+					};
 				},
 				controllerAs: 'findUsersCtrl'
 			})
@@ -600,13 +776,11 @@
 
 					this.Username = '';
 					this.BankId = '';
-					this.DatabaseId = '';
 					this.Tagline = '';
 
 					$http.get('/data?page=profile').then(function(response) {
 						store.Username = response.data.username;
 						store.BankId = response.data.bankid;
-						store.DatabaseId = response.data.databaseid;
 						store.CurrentTagline = response.data.tagline;
 						store.Tagline = response.data.tagline;
 					});
@@ -629,7 +803,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 						});
 					};
 				},
@@ -665,7 +839,7 @@
 								}
 							}, function(response) {
 								store.successMessage = '';
-								store.errorMessage = 'Communication error with server';
+								store.errorMessage = error_messages.communication_error;
 							});
 						} else {
 							store.successMessage = '';
@@ -678,6 +852,41 @@
 							this.changePassword();
 						}
 					};
+
+					this.username = '';
+					this.changeUsername = function() {
+						var usernameTemp = store.username;
+						store.username = '';
+
+						if (usernameTemp.length >= 0) {
+							$http.post('/', {
+								page: 'account-username',
+								data: {
+									username: usernameTemp
+								}
+							}).then(function(response) {
+								if (response.data.success) {
+									store.errorMessage = '';
+									store.successMessage = 'Username changed';
+								} else {
+									store.successMessage = '';
+									store.errorMessage = response.data.message;
+								}
+							}, function(response) {
+								store.successMessage = '';
+								store.errorMessage = error_messages.communication_error;
+							});
+						} else {
+							store.successMessage = '';
+							store.errorMessage = 'No username provided';
+						}
+					};
+					this.checkUsername = function(event) {
+						var key = event.keyCode;
+						if (key === 13) {
+							this.changeUsername();
+						}
+					}
 				},
 				controllerAs: 'accountCtrl'
 			})
@@ -737,6 +946,39 @@
 			})
 			.when('/myshops', {
 				templateUrl: 'static/templates/my-shops.html'
+			})
+			.when('/admin', {
+				templateUrl: 'static/templates/admin-header.html',
+				controller: function($location) {
+					console.log('hello');
+					$location.path('/admin/logs');
+				}
+			})
+			.when('/admin/logs', {
+				templateUrl: 'static/templates/admin-logs.html',
+				controller: function($http, $location) {
+					var store = this;
+
+					this.lines = [];
+					this.loaded = false;
+
+					updaters.adminLogs = function() {
+						$http.get('/data?page=admin-logs&limit=16').then(function(response) {
+							if (!response.data) {
+								$location.path('/denied');
+							} else {
+								store.lines = response.data.lines;
+								store.loaded = true;
+								setTimeout(updaters.adminLogs, 1000);
+							}
+						});
+					};
+					updaters.adminLogs();
+				},
+				controllerAs: 'adminLogsCtrl'
+			})
+			.when('/denied', {
+				templateUrl: 'static/templates/request-denied.html'
 			});
 	});
 
@@ -748,25 +990,24 @@
 				var store = this;
 
 				this.unreadMessagesNumber = 0;
-				this.username = '';
-				this.balance = 0;
 
 				updaters.navbar = function() {
 					$http.get('/data?page=navbar').then(function(response) {
 						if (!response.data) {
 							$window.location.href = '/signin';
 						}
-						store.username = response.data.username;
+						global_values.username = response.data.username;
 						store.unreadMessagesNumber = response.data.unreadMessagesNumber;
-						store.balance = response.data.balance;
-						store.taxRate = response.data.taxRate;
+						global_values.balance = response.data.balance;
+						global_values.taxRate = response.data.taxRate;
+						global_values.isAdmin = response.data.isAdmin;
 						setTimeout(updaters.navbar, 1000);
 					});
 				};
 				updaters.navbar();
 
 				this.getTax = function(amount) {
-					return Math.ceil(amount * store.taxRate * 100) / 100;
+					return Math.ceil(amount * global_values.taxRate * 100) / 100;
 				};
 				this.getTotal = function(amount) {
 					return this.getTax(amount) + amount;
@@ -804,7 +1045,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 							$('#quicklinkResponseModal').modal('show');
 						});
 					}
@@ -820,7 +1061,8 @@
 						$http.post('/', {
 							page: 'buy',
 							data: {
-								item: this.quicklinkData.item
+								item: this.quicklinkData.item,
+								quantity: 1
 							}
 						}).then(function(response) {
 							if (response.data.success) {
@@ -836,7 +1078,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 							$('#quicklinkResponseModal').modal('show');
 						});
 					}
@@ -858,7 +1100,7 @@
 							}
 						}, function(response) {
 							store.successMessage = '';
-							store.errorMessage = 'Communication error with server';
+							store.errorMessage = error_messages.communication_error;
 							$('#quicklinkResponseModal').modal('show');
 						});
 					}
@@ -871,6 +1113,13 @@
 		this.isCurrentPage = function(route) {
 			route = '/' + route;
 			return current_route === route;
+		};
+		this.globalValues = global_values;
+		this.imageLink = function(string) {
+			if (string.indexOf('?') > -1) {
+				return string + '&rand' + Date.now() + '=' + Date.now();
+			}
+			return string + '?rand' + Date.now() + '=' + Date.now();
 		};
 	});
 	app.directive('marketHeader', function() {
@@ -915,10 +1164,34 @@
 			templateUrl: 'static/templates/shops-header.html'
 		};
 	});
+	app.directive('adminHeader', function() {
+		return {
+			restrict: 'E',
+			templateUrl: 'static/templates/admin-header.html'
+		};
+	});
 	app.directive('loadingIcon', function() {
 		return {
 			restrict: 'E',
 			templateUrl: 'static/templates/loading-icon.html'
 		};
+	});
+	app.directive('fileread', function() {
+		return {
+			scope: {
+				fileread: '='
+			},
+			link: function(scope, element, attributes) {
+				element.bind('change', function(changeEvent) {
+					var reader = new FileReader();
+					reader.onload = function(loadEvent) {
+						scope.$apply(function() {
+							scope.fileread = loadEvent.target.result;
+						});
+					};
+					reader.readAsDataURL(changeEvent.target.files[0]);
+				});
+			}
+		}
 	});
 })();

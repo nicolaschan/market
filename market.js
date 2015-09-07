@@ -1,17 +1,45 @@
-var market = function(config) {
-	this.config = {
-		"taxRate": 0.05,
-		"adminId": "market",
-		"port": 8080,
-		"database": "mongodb://localhost/market",
-		"logger": {
-			"filename": "main.log",
-			"level": "ALL"
-		}
+var app = function(user_config) {
+	var config = {
+		port: {
+			http: 8080,
+			https: 8080
+		},
+		https: {
+			enabled: false,
+			key: 'keys/example.com.key',
+			cert: 'keys/example.com.crt'
+		},
+		mongodb: {
+			host: 'database.example.com',
+			port: 27017,
+			database: 'market'
+		},
+		logger: {
+			filename: 'main.log',
+			level: 'ALL'
+		},
+		tax: {
+			rate: 0.05,
+			recipient: 'tax'
+		},
+		admins: ['market'],
+		default_tagline: 'A market user'
 	};
-	for (var key in config) {
-		this.config.key = config.key;
+
+	var config_properties_loaded = 0;
+	var essential_config_properties = {
+		mongodb: false
+	};
+
+	for (var key in user_config) {
+		config[key] = user_config[key];
+
+		if (essential_config_properties[key] === false) {
+			essential_config_properties[key] = true;
+		}
+		config_properties_loaded++;
 	}
+
 	var getLogger = function(name, level) {
 		var log4js = require('log4js');
 		log4js.configure({
@@ -32,20 +60,41 @@ var market = function(config) {
 
 	var logger = getLogger('market', config.logger.level);
 
+	// check if config properties are loaded correctly
+	if (config_properties_loaded <= 0) {
+		logger.warn('No configuration properties loaded, using default values');
+	} else {
+		logger.debug(config_properties_loaded + ' configuration properties loaded');
+	}
+	for (var key in essential_config_properties) {
+		if (!essential_config_properties[key]) {
+			logger.warn('Configuration property \"' + key + '\" was not provided. This will cause problems.');
+		}
+	}
+	logger.trace('Configuration values are: ' + JSON.stringify(config));
+
+	var web_server;
+	var mongoose = require('mongoose'),
+		Schema = mongoose.Schema,
+		conn = mongoose.connection;
+
 	this.start = function() {
-		logger.info('Starting market app...');
+		logger.debug('Starting market app...');
+		var start_time = Date.now();
+
 		logger.debug('Logging at level: ' + logger.level.levelStr);
 
-		var mongoose = require('mongoose'),
-			Schema = mongoose.Schema,
-			conn = mongoose.connection;
+		var getDatabaseURL = function(mongodb) {
+			return 'mongodb://' + mongodb.host + ':' + mongodb.port + '/' + mongodb.database;
+		};
 
-		mongoose.connect(config.database);
+		logger.trace('Connecting to database at ' + getDatabaseURL(config.mongodb) + '...');
+		mongoose.connect(getDatabaseURL(config.mongodb));
 
 		var fs = require('fs');
 
 		conn.once('open', function() {
-			logger.debug('Database connection open to ' + config.database);
+			logger.debug('Database connection open to ' + getDatabaseURL(config.mongodb));
 
 			var conversationsSchema = new Schema({
 				users: [String],
@@ -96,11 +145,10 @@ var market = function(config) {
 				bankid: String,
 				password: String,
 				balance: Number,
-				selling: Array,
-				shops: Array,
-				friends: Array,
 				unreadMessagesNumber: Number,
-				tagline: String
+				tagline: String,
+				trusted: Boolean,
+				taxExempt: Boolean
 			}, {
 				collection: 'users'
 			});
@@ -115,25 +163,70 @@ var market = function(config) {
 			}, {
 				collection: 'quicklinks'
 			});
+			var receiptsSchema = new Schema({
+				id: String,
+				proof: String,
+				buyer: String,
+				seller: String,
+				recipient: String,
+				date: Date,
+				item: {
+					name: String,
+					quantity: Number,
+					description: String,
+					instructions: String
+				}
+			});
 
 			var uuid = require('node-uuid');
 			var getUniqueId = function(prefix) {
 				return prefix + '-' + uuid.v1();
 			};
 
+			var shortid = require('shortid');
+			var getShortId = function(prefix) {
+				return shortid.generate();
+			};
+
 			var password_hasher = require('password-hash-and-salt');
 
-			var UserModel = mongoose.model('user', usersSchema);
+			var UsersModel = mongoose.model('user', usersSchema);
 			var ItemsModel = mongoose.model('items', itemsSchema);
 			var TransactionsModel = mongoose.model('transactions', transactionsSchema);
 			var QuicklinksModel = mongoose.model('quicklinks', quicklinksSchema);
+			var ReceiptsModel = mongoose.model('receipts', receiptsSchema);
+
+			var quote = function(string) {
+				return '\"' + string + '\"';
+			};
 
 			var displayUser = function(username, bankid) {
 				return username + ' (#' + bankid + ')';
 			};
 
+			var saveImage = function(string, id, req, callback) {
+				if (string) {
+					var filetype = string.split(':')[1].split('/')[0];
+					var extension = string.split(':')[1].split('/')[1].split(';')[0];
+					if (filetype === 'image' && (extension === 'png' || extension === 'jpeg')) {
+						fs.writeFile(__dirname + '/user-content/item-images/' + id, string.split(',')[1], 'base64', function(err) {
+							return callback(err);
+						});
+					}
+				}
+				return callback();
+			};
+
+			var checkIsAdmin = function(bankid) {
+				var admins = config.admins;
+				if (admins.indexOf(bankid) > -1) {
+					return true;
+				}
+				return false;
+			};
+
 			var idToUsername = function(id, callback) {
-				UserModel.findOne({
+				UsersModel.findOne({
 					id: id
 				}).lean().exec(function(err, data) {
 					callback(data.username);
@@ -144,27 +237,31 @@ var market = function(config) {
 				var minimum_length = 3;
 				var maximum_length = 16;
 				if (!/^[a-zA-Z0-9_]*$/g.test(username)) {
+					logger.trace(quote(username) + ' is not a valid username because it contains illegal characters');
 					return result({
 						success: false,
 						message: 'Username may only contain letters, numbers, and underscore'
 					});
 				}
-				if (username.length < minimum_length && username.length > maximum_length) {
+				if (username.length < minimum_length || username.length > maximum_length) {
+					logger.trace(quote(username) + ' is not a valid username because it is not an acceptable length');
 					return result({
 						success: false,
 						message: 'Username must be ' + minimum_length + ' to ' + maximum_length + ' characters long'
 					});
 				}
 
-				UserModel.findOne({
-					username: username
+				UsersModel.findOne({
+					username_lower: username.toLowerCase()
 				}).lean().count(function(err, count) {
 					if (count > 0) {
+						logger.trace(quote(username) + ' is not an available username');
 						return result({
 							success: false,
 							message: 'Username is taken'
 						});
 					} else {
+						logger.trace(quote(username) + ' is a valid username');
 						return result({
 							success: true
 						});
@@ -180,17 +277,17 @@ var market = function(config) {
 					if (!/^[a-zA-Z0-9_]*$/g.test(bankid)) {
 						return result({
 							success: false,
-							message: 'Username may only contain letters, numbers, and underscore'
+							message: 'Bank ID may only contain letters, numbers, and underscore'
 						});
 					}
 					if (bankid.length < minimum_length && bankid.length > maximum_length) {
 						return result({
 							success: false,
-							message: 'Username must be ' + minimum_length + ' to ' + maximum_length + ' characters long'
+							message: 'Bank ID must be ' + minimum_length + ' to ' + maximum_length + ' characters long'
 						});
 					}
 
-					UserModel.findOne({
+					UsersModel.findOne({
 						bankid: bankid
 					}).lean().count(function(err, count) {
 						if (count > 0) {
@@ -207,18 +304,17 @@ var market = function(config) {
 				};
 
 				var saveUser = function(credentials) {
-					var user = new UserModel({
+					var user = new UsersModel({
 						id: getUniqueId('user'),
 						username: credentials.username,
 						username_lower: credentials.username.toLowerCase(),
 						password: credentials.password_hash,
 						bankid: credentials.bankid,
 						balance: 10000000,
-						selling: [],
-						shops: [],
-						friends: [],
 						unreadMessagesNumber: 0,
-						tagline: 'A market user'
+						tagline: config.default_tagline,
+						trusted: false,
+						taxExempt: false
 					});
 					user.save(function(err) {
 						if (err) {
@@ -250,6 +346,66 @@ var market = function(config) {
 				});
 			};
 
+			var transferMoney = function(args, callback) {
+				var sender = args.sender;
+				var recipient = args.recipient;
+				var amount = args.amount;
+				var memo = args.memo;
+				var generated = args.generated;
+
+				var addMoney = function(user, amount, callback) {
+					UsersModel.update({
+						id: user
+					}, {
+						$inc: {
+							balance: amount * 100
+						}
+					}, function() {
+						callback();
+					});
+				};
+
+				var getBalance = function(user, callback) {
+					UsersModel.findOne({
+						id: user
+					}).lean().exec(function(err, user) {
+						if (err) {
+							return callback(err);
+						} else {
+							return callback(null, user.balance);
+						}
+					});
+				};
+
+				if (amount > 0) {
+					getBalance(sender, function(err, balance) {
+						if (err) {
+							return callback(err);
+						} else {
+							if (balance >= amount) {
+								addMoney(sender, -1 * amount, function() {
+									addMoney(recipient, amount, function() {
+										(new TransactionsModel({
+											from: sender,
+											to: recipient,
+											amount: amount,
+											memo: memo,
+											date: Date.now(),
+											generated: generated
+										})).save();
+										return callback(null);
+									});
+								});
+							} else {
+								return callback('Not enough funds in account');
+							}
+						}
+					});
+				} else {
+					return callback(null);
+				}
+			};
+
 			var express = require('express');
 			var app = express();
 
@@ -267,13 +423,14 @@ var market = function(config) {
 				passReqToCallback: true
 			}, function(req, username, password, done) {
 				if (username.substring(0, 1) === '#') {
-					UserModel.findOne({
+					UsersModel.findOne({
 						bankid: username.substring(1).toLowerCase().trim()
 					}, function(err, user) {
 						if (err) {
 							return done(err);
 						}
 						if (!user) {
+							logger.debug(req.ip + ' provided invalid sign in credentials (reason: bank ID not found): ' + username);
 							return done(null, false, {
 								message: 'Incorrect username or password'
 							});
@@ -286,6 +443,7 @@ var market = function(config) {
 								logger.info(displayUser(user.username, user.bankid) + ' signed in from ' + req.ip);
 								return done(null, user);
 							} else {
+								logger.debug(req.ip + ' provided invalid sign in credentials (reason: incorrect password): ' + displayUser(user.username, user.bankid));
 								return done(null, false, {
 									message: 'Incorrect username or password'
 								});
@@ -293,13 +451,14 @@ var market = function(config) {
 						});
 					});
 				} else {
-					UserModel.findOne({
+					UsersModel.findOne({
 						username_lower: username.toLowerCase().trim()
 					}, function(err, user) {
 						if (err) {
 							return done(err);
 						}
 						if (!user) {
+							logger.debug(req.ip + ' provided invalid sign in credentials (reason: user not found): ' + username);
 							return done(null, false, {
 								message: 'Incorrect username or password'
 							});
@@ -312,6 +471,7 @@ var market = function(config) {
 								logger.info(displayUser(user.username, user.bankid) + ' signed in from ' + req.ip);
 								return done(null, user);
 							} else {
+								logger.debug(req.ip + ' provided invalid sign in credentials (reason: incorrect password): ' + displayUser(user.username, user.bankid));
 								return done(null, false, {
 									message: 'Incorrect username or password'
 								});
@@ -324,7 +484,7 @@ var market = function(config) {
 				done(null, user.id);
 			});
 			passport.deserializeUser(function(id, done) {
-				UserModel.findOne({
+				UsersModel.findOne({
 					id: id
 				}, function(err, user) {
 					done(err, user);
@@ -334,8 +494,11 @@ var market = function(config) {
 			app.use(passport.session());
 
 			var bodyParser = require('body-parser');
-			app.use(bodyParser.json());
+			app.use(bodyParser.json({
+				limit: '5mb'
+			}));
 			app.use(bodyParser.urlencoded({
+				limit: '5mb',
 				extended: true
 			}));
 
@@ -385,9 +548,9 @@ var market = function(config) {
 						logger.error(err);
 					} else {
 						createUser({
-							username: user_info.username,
+							username: user_info.username.trim(),
 							password_hash: hash,
-							bankid: user_info.bankid
+							bankid: user_info.bankid.toLowerCase().trim()
 						}, respond);
 					}
 				});
@@ -415,7 +578,7 @@ var market = function(config) {
 
 			var isValidItemInfo = function(item, callback) {
 				var name_length_min = 1;
-				var name_length_max = 64;
+				var name_length_max = 32;
 				if (item.name.length < name_length_min) {
 					return callback({
 						success: false,
@@ -493,21 +656,21 @@ var market = function(config) {
 			};
 
 			var userByUsername = function(username, callback) {
-				UserModel.findOne({
+				UsersModel.findOne({
 					username_lower: username.toLowerCase()
 				}).lean().exec(function(err, data) {
 					callback(err, data)
 				});
 			};
 			var userByBankId = function(bankid, callback) {
-				UserModel.findOne({
+				UsersModel.findOne({
 					bankid: bankid.toLowerCase()
 				}).lean().exec(function(err, data) {
 					callback(err, data)
 				});
 			};
 			var userById = function(id, callback) {
-				UserModel.findOne({
+				UsersModel.findOne({
 					id: id
 				}).lean().exec(function(err, data) {
 					callback(err, data)
@@ -571,6 +734,13 @@ var market = function(config) {
 							var sender = req.user;
 							var recipient;
 							var market;
+
+							var taxRate = config.tax.rate;
+
+							if (req.user.taxExempt) {
+								taxRate = 0;
+							}
+
 							if (payment.to.substring(0, 1) === '#') {
 								userByBankId(payment.to.substring(1), function(err, data) {
 									if (err || !data) {
@@ -588,7 +758,7 @@ var market = function(config) {
 									if (err || !data) {
 										return res.send({
 											success: false,
-											message: 'User with username \"' + payment.to + '\" could not be found'
+											message: 'User with username ' + quote(payment.to) + ' could not be found'
 										});
 									} else {
 										recipient = data;
@@ -597,7 +767,7 @@ var market = function(config) {
 								});
 							}
 							var setMarket = function() {
-								userByBankId(config.adminId, function(err, data) {
+								userByBankId(config.tax.recipient, function(err, data) {
 									if (err || !data) {
 										return res.send({
 											success: false,
@@ -612,7 +782,7 @@ var market = function(config) {
 
 							var continue_sending = function() {
 								var getTax = function(amount) {
-									return Math.ceil(parseFloat(amount) * config.taxRate * 100) / 100;
+									return Math.ceil(parseFloat(amount) * taxRate * 100) / 100;
 								};
 								var getTotal = function(amount) {
 									return getTax(amount) + amount;
@@ -652,56 +822,29 @@ var market = function(config) {
 									if (valid_amount(payment.amount)) {
 										if (payment.amount > 0) {
 											if (sender.balance / 100 >= getTotal(payment.amount)) {
-												UserModel.update({
-													id: sender.id
-												}, {
-													$inc: {
-														balance: getTotal(payment.amount) * -100
-													}
-												}, function() {
-													UserModel.update({
-														id: market.id
-													}, {
-														$inc: {
-															balance: getTax(payment.amount) * 100
-														}
-													}, function() {
-														UserModel.update({
-															id: recipient.id
-														}, {
-															$inc: {
-																balance: payment.amount * 100
-															}
-														}, function() {
-															if (config.taxRate > 0) {
-																var tax_transaction = new TransactionsModel({
-																	from: sender.id,
-																	to: market.id,
-																	amount: getTax(payment.amount),
-																	memo: (config.taxRate * 100) + '% automatic tax',
-																	date: Date.now(),
-																	generated: true
-																});
-																tax_transaction.save();
-															}
-															var user_transaction = new TransactionsModel({
-																from: sender.id,
-																to: recipient.id,
-																amount: payment.amount,
-																memo: payment.memo,
-																date: Date.now(),
-																generated: false
-															});
-															user_transaction.save();
+												transferMoney({
+													sender: sender.id,
+													recipient: market.id,
+													amount: getTax(payment.amount),
+													memo: (taxRate * 100) + '% automatic tax',
+													generated: true
 
-															logger.info(displayUser(sender.username, sender.bankid) + ' sent ' + displayCurrency(payment.amount) + ' to ' + displayUser(recipient.username, recipient.bankid));
-															return res.send({
-																success: true,
-																message: displayCurrency(payment.amount) + ' was sent to ' + recipient.username + ' (#' + recipient.bankid + ')'
-															});
+												}, function() {
+													transferMoney({
+														sender: sender.id,
+														recipient: recipient.id,
+														amount: payment.amount,
+														memo: payment.memo,
+														generated: false
+													}, function() {
+														logger.info(displayUser(sender.username, sender.bankid) + ' sent ' + displayCurrency(payment.amount) + ' to ' + displayUser(recipient.username, recipient.bankid));
+														return res.send({
+															success: true,
+															message: displayCurrency(payment.amount) + ' was sent to ' + recipient.username + ' (#' + recipient.bankid + ')'
 														});
 													});
 												});
+
 											} else {
 												return res.send({
 													success: false,
@@ -726,16 +869,13 @@ var market = function(config) {
 										message: 'Invalid memo'
 									});
 								}
-
-
-
 							};
 							break;
 						case 'items':
 							var getRandomImage = function() {
 								var prefix = 'static/img/items/'
-								var images = ['black', 'blue', 'green', 'purple', 'red', 'yellow'];
-								var suffix = '.png';
+								var images = ['black', 'blue', 'cyan', 'gray', 'green', 'lightgray', 'magenta', 'pink', 'purple', 'red', 'yellow'];
+								var suffix = '.jpg';
 
 								var random = require('random-to');
 								return prefix + images[random.from0upto(images.length)] + suffix;
@@ -743,53 +883,74 @@ var market = function(config) {
 
 							isValidItemInfo(req.body.data.item, function(result) {
 								if (result.success) {
-									getQuicklinkId(function(err, id) {
-										if (err) {
-											return res.send({
-												success: false,
-												message: 'Error generating quicklink link'
-											});
-										}
-										var itemId = getUniqueId('item');
-										var item = new ItemsModel({
-											id: itemId,
-											owner: req.user.id,
-											name: req.body.data.item.name,
-											description: req.body.data.item.description,
-											price: req.body.data.item.price,
-											quantity: req.body.data.item.quantity,
-											instructions: req.body.data.item.instructions,
-											image: getRandomImage(),
-											forSale: req.body.data.item.forSale,
-											quicklink: id
-										});
-										var quicklink = new QuicklinksModel({
-											link: id,
-											item: itemId
-										});
-										quicklink.save(function(err) {
+									var itemId = getUniqueId('item');
+
+									var image = getRandomImage();
+
+									var continue_create_item = function() {
+										getQuicklinkId(function(err, id) {
 											if (err) {
 												return res.send({
 													success: false,
-													message: 'Error saving quicklink to database'
-												});
-											} else {
-												item.save(function(err) {
-													if (err) {
-														return res.send({
-															success: false,
-															message: 'Error saving item to database'
-														});
-													} else {
-														logger.info(displayUser(req.user.username, req.user.bankid) + ' created new item \'' + req.body.data.item.name + '\' (@' + id + ')');
-														return res.send({
-															success: true
-														});
-													}
+													message: 'Error generating quicklink link'
 												});
 											}
+
+											var item = new ItemsModel({
+												id: itemId,
+												owner: req.user.id,
+												name: req.body.data.item.name,
+												description: req.body.data.item.description,
+												price: req.body.data.item.price,
+												quantity: req.body.data.item.quantity,
+												instructions: req.body.data.item.instructions,
+												image: image,
+												forSale: req.body.data.item.forSale,
+												quicklink: id
+											});
+											var quicklink = new QuicklinksModel({
+												link: id,
+												item: itemId
+											});
+											quicklink.save(function(err) {
+												if (err) {
+													return res.send({
+														success: false,
+														message: 'Error saving quicklink to database'
+													});
+												} else {
+													item.save(function(err) {
+														if (err) {
+															return res.send({
+																success: false,
+																message: 'Error saving item to database'
+															});
+														} else {
+															logger.info(displayUser(req.user.username, req.user.bankid) + ' created new item \'' + req.body.data.item.name + '\' (@' + id + ')');
+															return res.send({
+																success: true
+															});
+														}
+													});
+												}
+											});
 										});
-									});
+									};
+
+									if (req.body.data.item.image) {
+										saveImage(req.body.data.item.image, itemId, req, function(err) {
+											if (err) {
+												logger.error('Error saving image ' + itemId);
+											} else {
+												logger.debug(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') uploaded image ' + itemId);
+												image = 'user-content/item-images?id=' + itemId;
+											}
+										});
+										continue_create_item();
+									} else {
+										continue_create_item();
+									}
+
 								} else {
 									return res.send(result);
 								}
@@ -797,18 +958,60 @@ var market = function(config) {
 
 							break;
 						case 'items-delete':
-							ItemsModel.find({
+							ItemsModel.findOne({
 								id: req.body.data.itemId,
 								owner: req.user.id
-							}).remove(function() {
-								return res.send({
-									success: true
-								})
+							}).exec(function(err, item) {
+								logger.info(displayUser(req.user.username, req.user.bankid) + ' is deleting item \'' + item.name + '\' (@' + item.quicklink + ')');
+								if (item.image.substring(0, 24) === 'user-content/item-images') {
+									var extension = item.image.split('.')[item.image.split('.').length - 1];
+									fs.unlink(__dirname + '/user-content/item-images/' + item.id, function(err) {
+										if (err) {
+											logger.error(err);
+											logger.error('Error removing file ' + __dirname + '/user-content/item-images/' + item.id);
+										} else {
+											logger.debug('Deleted file ' + __dirname + '/user-content/item-images/' + item.id);
+										}
+										item.remove();
+										return res.send({
+											success: true
+										});
+									});
+								} else {
+									logger.debug('No image to remove for item \'' + item.name + '\' (@' + item.quicklink + ')');
+									item.remove();
+									return res.send({
+										success: true
+									});
+								}
 							});
 							break;
 						case 'items-edit':
 							isValidItemInfo(req.body.data.item, function(result) {
 								if (result.success) {
+									if (req.body.data.item.image.substring(0, 7) !== 'static/') {
+										ItemsModel.findOne({
+											id: req.body.data.item.id,
+											owner: req.user.id
+										}).exec(function(err, item) {
+											if (err) {
+												return res.send({
+													success: false,
+													message: 'Could not find specified item'
+												});
+											}
+											saveImage(req.body.data.item.image, item.id, req, function(err) {
+												if (err) {
+													logger.error('Error saving image ' + item.id);
+												} else {
+													logger.debug(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') uploaded image ' + item.id);
+													item.image = 'user-content/item-images?id=' + item.id;
+													item.save();
+												}
+											});
+										});
+									}
+
 									ItemsModel.update({
 										id: req.body.data.item.id,
 										owner: req.user.id
@@ -833,8 +1036,15 @@ var market = function(config) {
 							break;
 						case 'buy':
 							var market;
+
+							var taxRate = config.tax.rate;
+
+							if (req.user.taxExempt) {
+								taxRate = 0;
+							}
+
 							var setMarket = function() {
-								userByBankId(config.adminId, function(err, data) {
+								userByBankId(config.tax.recipient, function(err, data) {
 									if (err || !data) {
 										return res.send({
 											success: false,
@@ -850,8 +1060,20 @@ var market = function(config) {
 							var continue_purchase = function() {
 								ItemsModel.findOne({
 									id: req.body.data.item.id,
-									forSale: true
+									forSale: true,
+									quantity: {
+										$gte: req.body.data.quantity
+									}
 								}).lean().exec(function(err, item) {
+									var quantity = req.body.data.quantity;
+
+									if (quantity < 1) {
+										return res.send({
+											success: false,
+											message: 'Invalid quantity'
+										});
+									}
+
 									if (!item) {
 										return res.send({
 											success: false,
@@ -867,40 +1089,41 @@ var market = function(config) {
 									}
 
 									var getTax = function(amount) {
-										return Math.ceil(parseFloat(amount) * config.taxRate * 100) / 100;
+										return Math.ceil(parseFloat(amount * quantity) * taxRate * 100) / 100;
 									};
 									var getTotal = function(amount) {
-										return getTax(amount) + amount;
+										return getTax(amount) + (amount * quantity);
 									};
 
 									if (req.user.balance / 100 >= getTotal(item.price)) {
-										UserModel.update({
+
+										UsersModel.update({
 											id: req.user.id
 										}, {
 											$inc: {
 												balance: getTotal(item.price) * -100
 											}
 										}, function() {
-											UserModel.update({
+											UsersModel.update({
 												id: market.id
 											}, {
 												$inc: {
 													balance: getTax(item.price) * 100
 												}
 											}, function() {
-												UserModel.update({
+												UsersModel.update({
 													id: item.owner
 												}, {
 													$inc: {
 														balance: item.price * 100
 													}
 												}, function() {
-													if (config.taxRate > 0) {
+													if (taxRate > 0) {
 														var tax_transaction = new TransactionsModel({
 															from: req.user.id,
 															to: market.id,
 															amount: getTax(item.price),
-															memo: (config.taxRate * 100) + '% automatic tax',
+															memo: (taxRate * 100) + '% automatic tax',
 															date: Date.now(),
 															generated: true
 														});
@@ -916,17 +1139,32 @@ var market = function(config) {
 													});
 													user_transaction.save();
 
-													ItemsModel.findOne({
+													ItemsModel.update({
 														id: item.id
-													}).exec(function(err, item) {
-														item.owner = req.user.id;
-														item.forSale = false;
-														item.save(function() {
-															logger.info(displayUser(req.user.username, req.user.bankid) + ' purchased item \'' + item.name + '\' (@' + item.quicklink + ')');
-															return res.send({
-																success: true,
-																message: 'Item purchased, view your items on the \"My Items\" page'
-															});
+													}, {
+														$inc: {
+															quantity: -1 * req.body.data.quantity
+														}
+													}, function() {
+														var receipt = new ReceiptsModel({
+															id: getUniqueId('receipt'),
+															proof: getShortId(),
+															buyer: req.user.id,
+															seller: item.owner,
+															date: Date.now(),
+															item: {
+																name: item.name,
+																quantity: req.body.data.quantity,
+																description: item.description,
+																instructions: item.instructions
+															}
+														});
+														receipt.save();
+
+														logger.info(displayUser(req.user.username, req.user.bankid) + ' purchased item \'' + item.name + '\' (@' + item.quicklink + ')');
+														return res.send({
+															success: true,
+															message: 'Item purchased, view your proof of purchase on the \"Receipts\" page'
 														});
 													});
 												});
@@ -954,7 +1192,8 @@ var market = function(config) {
 									if (quicklink) {
 										if (quicklink.item) {
 											ItemsModel.findOne({
-												id: quicklink.item
+												id: quicklink.item,
+												forSale: true
 											}).lean().exec(function(err, item) {
 												if (item) {
 													quicklink.item = item;
@@ -1010,7 +1249,7 @@ var market = function(config) {
 											message: 'Could not hash provided password'
 										});
 									} else {
-										UserModel.update({
+										UsersModel.update({
 											id: req.user.id
 										}, {
 											password: hash
@@ -1028,30 +1267,156 @@ var market = function(config) {
 								});
 							}
 							break;
+						case 'account-username':
+							if (req.body.data.username) {
+								logger.debug(displayUser(req.user.username, req.user.bankid) + ' is trying to change their username to ' + quote(req.body.data.username));
+								if (req.body.data.username.toLowerCase() === req.user.username_lower) {
+									req.user.username = req.body.data.username;
+									req.user.username_lower = req.body.data.username.toLowerCase();
+									req.user.save();
+									return res.send({
+										success: true
+									});
+								}
+								isValidUsername(req.body.data.username, function(result) {
+									if (result.success) {
+										logger.info(displayUser(req.user.username, req.user.bankid) + ' changed their username to ' + quote(req.body.data.username));
+										req.user.username = req.body.data.username;
+										req.user.username_lower = req.body.data.username.toLowerCase();
+										req.user.save();
+									} else {
+										logger.debug(displayUser(req.user.username, req.user.bankid) + ' username change to ' + quote(req.body.data.username) + ' failed');
+									}
+									return res.send(result);
+								});
+							} else {
+								return res.send({
+									success: false,
+									message: 'No username provided'
+								});
+							}
+							break;
+						case 'find-edit':
+							if (checkIsAdmin(req.user.bankid)) {
+								if (req.body.data.id) {
+									UsersModel.findOne({
+										id: req.body.data.id
+									}).exec(function(err, user) {
+										if (!user) {
+											return res.send({
+												success: false,
+												message: 'Could not find user'
+											});
+										}
+
+										if (req.body.data.newValues.username) {
+											user.username = req.body.data.newValues.username;
+											user.username_lower = req.body.data.newValues.username.toLowerCase();
+										}
+										if (req.body.data.newValues.bankid) {
+											user.bankid = req.body.data.newValues.bankid;
+										}
+										if (!isNaN(req.body.data.newValues.balance)) {
+											user.balance = req.body.data.newValues.balance * 100;
+										}
+										if (req.body.data.newValues.tagline) {
+											user.tagline = req.body.data.newValues.tagline;
+										}
+										user.trusted = req.body.data.newValues.trusted;
+										user.taxExempt = req.body.data.newValues.taxExempt;
+										if (req.body.data.newValues.password) {
+											password_hasher(req.body.data.newValues.password).hash(function(err, hash) {
+												if (err) {
+													logger.error(err);
+													return res.send({
+														success: false,
+														message: 'Could not hash provided password'
+													});
+												} else {
+													user.password = hash;
+													user.save();
+												}
+											})
+										}
+
+										user.save();
+										return res.send({
+											success: true
+										});
+									});
+								}
+							} else {
+								logger.warn(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') tried to edit a user but is not an admin');
+								res.send({
+									success: false,
+									message: 'You are not an admin! This violation has been logged'
+								});
+							}
+							break;
+						case 'find-delete':
+							if (checkIsAdmin(req.user.bankid)) {
+								if (req.body.data.id) {
+									UsersModel.findOne({
+										id: req.body.data.id
+									}).exec(function(err, user) {
+										if (user) {
+											logger.info('Admin ' + displayUser(req.user.username, req.user.bankid) + ' deleted user ' + displayUser(user.username, user.bankid));
+											user.remove();
+											return res.send({
+												success: true
+											});
+										} else {
+											return res.send({
+												success: false,
+												message: 'Could not find user'
+											});
+										}
+									});
+								}
+							} else {
+								logger.warn(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') tried to delete a user but is not an admin');
+								res.send({
+									success: false,
+									message: 'You are not an admin! This violation has been logged'
+								});
+							}
+
 					}
 				} else {
 					res.send(null);
 				}
 			});
 
+			var unknown_user_name = '[Deleted User]';
 			app.get('/data', function(req, res) {
 				res.set('Content-Type', 'text/json');
 
 				if (req.user) {
 					switch (req.query.page) {
 						case 'navbar':
+							var taxRate = config.tax.rate;
+
+							if (req.user.taxExempt) {
+								taxRate = 0;
+							}
+
 							res.send({
 								username: req.user.username,
 								unreadMessagesNumber: req.user.unreadMessagesNumber,
 								balance: req.user.balance / 100,
-								taxRate: config.taxRate
+								taxRate: taxRate,
+								isAdmin: checkIsAdmin(req.user.bankid)
 							});
 							break;
 						case 'buy':
 							var synchronouslyConvertIdToUsername = function(data, index, callback) {
 								if (data.length > 0) {
 									userById(data[index].owner, function(err, user) {
-										data[index].owner = user.username;
+										if (user) {
+											data[index].owner = user.username;
+										} else {
+											data[index].owner = unknown_user_name;
+										}
 										if (index < (data.length - 1)) {
 											synchronouslyConvertIdToUsername(data, index + 1, callback);
 										} else {
@@ -1065,22 +1430,20 @@ var market = function(config) {
 							};
 							ItemsModel.find({
 								forSale: true,
-								owner: {
-									$ne: req.user.id
+								quantity: {
+									$gt: 0
 								}
 							}).select('-instructions').lean().exec(function(err, data) {
 								if (data.length) {
 									synchronouslyConvertIdToUsername(data, 0, function(result) {
 										res.send({
-											balance: req.user.balance / 100,
-											taxRate: config.taxRate,
 											items: result
 										});
 									});
 								} else {
 									res.send({
 										balance: req.user.balance / 100,
-										taxRate: config.taxRate,
+										taxRate: taxRate,
 										items: []
 									});
 								}
@@ -1103,19 +1466,23 @@ var market = function(config) {
 							});
 							break;
 						case 'find':
-							UserModel.find({
-								id: {
-									$ne: req.user.id
-								}
-							}).sort({
-								username: 1
+							UsersModel.find({}).sort({
+								balance: -1
 							}).lean().exec(function(err, data) {
-								res.send(data);
-							});
-							break;
-						case 'balance':
-							res.send({
-								balance: req.user.balance / 100
+								var users = [];
+								for (var i in data) {
+									var user = {
+										id: data[i].id,
+										username: data[i].username,
+										bankid: data[i].bankid,
+										tagline: data[i].tagline,
+										balance: data[i].balance / 100,
+										trusted: data[i].trusted,
+										taxExempt: data[i].taxExempt
+									};
+									users.push(user);
+								}
+								res.send(users);
 							});
 							break;
 						case 'transactions':
@@ -1133,13 +1500,25 @@ var market = function(config) {
 										data[index].date = new Date(data[index].date).toString();
 
 										userById(data[index].from, function(err, user) {
-											data[index].from = {};
-											data[index].from.username = user.username;
-											data[index].from.bankid = user.bankid;
+											if (user) {
+												data[index].from = {};
+												data[index].from.username = user.username;
+												data[index].from.bankid = user.bankid;
+											} else {
+												data[index].from = {};
+												data[index].from.username = unknown_user_name;
+												data[index].from.bankid = unknown_user_name;
+											}
 											userById(data[index].to, function(err, user) {
-												data[index].to = {};
-												data[index].to.username = user.username;
-												data[index].to.bankid = user.bankid;
+												if (user) {
+													data[index].to = {};
+													data[index].to.username = user.username;
+													data[index].to.bankid = user.bankid;
+												} else {
+													data[index].to = {};
+													data[index].to.username = unknown_user_name;
+													data[index].to.bankid = unknown_user_name;
+												}
 												if (index < (data.length - 1)) {
 													synchronouslyConvertIdToUsername(data, index + 1, callback);
 												} else {
@@ -1155,17 +1534,108 @@ var market = function(config) {
 								};
 								synchronouslyConvertIdToUsername(data, 0, function(transactions) {
 									res.send({
-										username: req.user.username,
 										transactions: transactions
 									});
 								});
 							});
 							break;
+						case 'receipts':
+							ReceiptsModel.find({
+								$or: [{
+									buyer: req.user.id
+								}, {
+									seller: req.user.id
+								}]
+							}).sort({
+								date: -1
+							}).lean().exec(function(err, data) {
+								var synchronouslyConvertIdToUsername = function(data, index, callback) {
+									if (data.length > 0) {
+										data[index].date = new Date(data[index].date).toString();
+
+										userById(data[index].seller, function(err, user) {
+											if (user) {
+												data[index].seller = {};
+												data[index].seller.username = user.username;
+												data[index].seller.bankid = user.bankid;
+											} else {
+												data[index].seller = {};
+												data[index].seller.username = unknown_user_name;
+												data[index].seller.bankid = unknown_user_name;
+											}
+											userById(data[index].buyer, function(err, user) {
+												if (user) {
+													data[index].buyer = {};
+													data[index].buyer.username = user.username;
+													data[index].buyer.bankid = user.bankid;
+												} else {
+													data[index].buyer = {};
+													data[index].buyer.username = unknown_user_name;
+													data[index].buyer.bankid = unknown_user_name;
+												}
+												if (index < (data.length - 1)) {
+													synchronouslyConvertIdToUsername(data, index + 1, callback);
+												} else {
+													callback(data);
+												}
+											});
+
+										});
+
+									} else {
+										callback(data);
+									}
+								};
+								synchronouslyConvertIdToUsername(data, 0, function(receipts) {
+									res.send({
+										receipts: receipts
+									});
+								});
+							});
+							break;
 						case 'send':
+							var taxRate = config.tax.rate;
+
+							if (req.user.taxExempt) {
+								taxRate = 0;
+							}
 							res.send({
-								taxRate: config.taxRate,
+								taxRate: taxRate,
 								balance: req.user.balance / 100
 							});
+							break;
+						case 'admin-logs':
+							if (checkIsAdmin(req.user.bankid)) {
+								var lines = [];
+
+								var LineByLineReader = require('line-by-line');
+								var lr = new LineByLineReader('logs/' + config.logger.filename);
+
+								lr.on('line', function(line) {
+									lines.push(line);
+								});
+
+								lr.on('end', function() {
+									if (req.query.limit) {
+										lines = lines.slice(Math.max(lines.length - parseInt(req.query.limit), 1));
+									}
+
+									res.send({
+										lines: lines
+									});
+								});
+							} else {
+								logger.warn(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') requested the admin logs but is not an admin');
+								res.send(null);
+							}
+							break;
+						case 'admin-logs-download':
+							if (checkIsAdmin(req.user.bankid)) {
+								res.sendFile(__dirname + '/logs/' + config.logger.filename);
+							} else {
+								logger.warn(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') requested the admin logs but is not an admin');
+								res.send(null);
+							}
 							break;
 					}
 				} else {
@@ -1174,18 +1644,109 @@ var market = function(config) {
 			});
 
 			app.get('/signout', function(req, res) {
-				logger.info(displayUser(req.user.username, req.user.bankid) + ' signed out from ' + req.ip);
-				req.logout();
+				if (req.user) {
+					logger.info(displayUser(req.user.username, req.user.bankid) + ' signed out from ' + req.ip);
+					req.logout();
+				}
 				res.redirect('/signin');
 			});
 
-			app.listen(config.port, function() {
-				logger.debug('App listening on port ' + config.port);
-				logger.info('Market app ready');
+			app.get('/user-content/item-images', function(req, res) {
+				if (req.user) {
+					ItemsModel.findOne({
+						id: req.query.id,
+						$or: [{
+							forSale: true
+						}, {
+							owner: req.user.id
+						}],
+					}).lean().exec(function(err, item) {
+						if (item) {
+							var image_url = __dirname + '/user-content/item-images/' + item.id;
+							fs.stat(image_url, function(err, stat) {
+								if (err === null) {
+									return res.sendFile(image_url);
+								} else {
+									logger.warn(displayUser(req.user.username, req.user.bankid) + ' requested image ' + req.query.id + ' but an error occurred, error code: ' + err.code);
+									return res.sendFile(__dirname + '/webcontent/img/not-found.png');
+								}
+							});
+						} else {
+							return res.sendFile(__dirname + '/webcontent/img/not-found.png');
+						}
+					});
+				} else {
+					res.set('Content-Type', 'text/json');
+					return res.send('Permission denied');
+				}
 			});
+
+			var web_server_started = false;
+
+			var market_ready = function() {
+				var is_ready = false;
+				var check = function() {
+					logger.trace('Checking if startup is complete...');
+					if (!is_ready) {
+						// mongoose connection should be open and webserver should be started to be considered ready
+						if ((mongoose.connection.readyState === 1) && (web_server_started)) {
+							logger.trace('Startup is complete!');
+							is_ready = true;
+							logger.debug('Startup time was ' + (Date.now() - start_time) / 1000 + ' sec');
+							logger.info('Market app ready');
+						} else {
+							logger.trace('Startup was not complete, checking again in 1 second...');
+							setTimeout(check, 1000);
+						}
+					}
+				};
+				check();
+			};
+
+			var https_options;
+			if (config.https.enabled) {
+				https_options = {
+					key: fs.readFileSync(config.https.key),
+					cert: fs.readFileSync(config.https.cert),
+					ciphers: 'HIGH'
+				};
+			}
+
+			if ((config.port.http === config.port.https) && (config.https.enabled)) {
+				var httpolyglot = require('httpolyglot');
+				httpolyglot_server = httpolyglot.createServer(https_options, app);
+				httpolyglot_server.listen(config.port.https, function() {
+					web_server_started = true;
+					logger.debug('App listening on port ' + config.port.https + ' (http and https)');
+					market_ready();
+				});
+			} else {
+				var http = require('http');
+				var http_server = http.createServer(app);
+				http_server.listen(config.port.http, function() {
+					if (!config.https.enabled) {
+						web_server_started = true;
+					}
+					logger.debug('App listening on port ' + config.port.http + ' (http)');
+					market_ready();
+				});
+
+				if (config.https.enabled) {
+					var https = require('https');
+					var https_server = https.createServer(https_options, app);
+					https_server.listen(config.port.https, function() {
+						web_server_started = true;
+						logger.debug('App listening on port ' + config.port.https + ' (https)');
+						market_ready();
+					});
+				}
+			}
 		});
 	};
-	logger.trace('Market instance instantiated');
+
+	logger.trace('Market app instantiated');
 };
 
-module.exports.market = market;
+module.exports.createApp = function(config) {
+	return new app(config);
+};

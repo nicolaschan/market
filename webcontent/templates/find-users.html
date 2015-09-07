@@ -1,11 +1,19 @@
 <users-header></users-header>
+<div class="alert alert-danger" ng-show="findUsersCtrl.errorMessage">
+	<a href="javascript:void(0)" class="close" ng-click="findUsersCtrl.errorMessage = ''" aria-label="close">&times;</a>
+	<strong>Error!</strong> {{findUsersCtrl.errorMessage}}
+</div>
+<div class="alert alert-success" ng-show="findUsersCtrl.successMessage">
+	<a href="javascript:void(0)" class="close" ng-click="findUsersCtrl.successMessage = ''" aria-label="close">&times;</a>
+	<strong>Success!</strong> {{findUsersCtrl.successMessage}}
+</div>
 <div class="row">
 	<div class="col-sm-8 col-sm-offset-2">
 		<div class="input-group">
 			<input ng-model="findUsersCtrl.search" type="text" class="form-control" placeholder="Search users..." ng-change="findUsersCtrl.doSearch()">
 			<span class="input-group-btn">
 				<button class="btn btn-default" type="button" ng-click="findUsersCtrl.doSearch()">
-					<span class="glyphicon glyphicon-search"></span>
+				<span class="glyphicon glyphicon-search"></span>
 				</button>
 			</span>
 		</div>
@@ -20,19 +28,18 @@
 				<th>Username</th>
 				<th>Bank ID</th>
 				<th>Tagline</th>
-				<th>Actions</th>
+				<th>Balance</th>
+				<th ng-show="contentCtrl.globalValues.isAdmin">Actions</th>
 			</thead>
 			<tbody>
 				<tr ng-repeat="user in findUsersCtrl.getAllUsers()">
-					<td>{{user.username}}</td>
+					<td>{{user.username}} <span class="glyphicon glyphicon-ok-sign" ng-show="user.trusted" title="Trusted User"></span> <span class="glyphicon glyphicon-star" ng-show="user.taxExempt" title="Tax Exempt User"></span></td>
 					<td>#{{user.bankid}}</td>
 					<td>{{user.tagline}}</td>
+					<td>{{user.balance | currency}}</td>
 					<td>
-						<button class="btn btn-default" type="button">
-							Send a message
-						</button>
-						<button class="btn btn-default" type="button">
-							Send money
+						<button class="btn btn-default btn-sm" type="button" ng-show="contentCtrl.globalValues.isAdmin" ng-click="findUsersCtrl.showModal(user)">
+							<span class="glyphicon glyphicon-edit"></span> Edit
 						</button>
 					</td>
 				</tr>
@@ -40,3 +47,53 @@
 		</table>
 	</div>
 </div>
+<div id="editUserModal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Edit User</h4>
+			</div>
+			<div class="modal-body">
+				<div class="input-group">
+					<span class="input-group-addon" id="basic-addon1">Username</span>
+					<input type="text" class="form-control" placeholder="{{findUsersCtrl.modalUser.username}}" aria-describedby="basic-addon1" ng-model="findUsersCtrl.newValues.username">
+				</div>
+				<br>
+				<div class="input-group">
+					<span class="input-group-addon" id="basic-addon2">Bank ID</span></span>
+					<input type="text" class="form-control" placeholder="{{findUsersCtrl.modalUser.bankid}}" aria-describedby="basic-addon2" ng-model="findUsersCtrl.newValues.bankid">
+				</div>
+				<br>
+				<div class="input-group">
+					<span class="input-group-addon">$</span>
+					<input type="number" class="form-control" placeholder="{{findUsersCtrl.modalUser.balance}}" ng-model="findUsersCtrl.newValues.balance">
+				</div>
+				<br>
+				<div class="input-group">
+					<span class="input-group-addon">Tagline</span>
+					<input type="text" class="form-control" min="1" placeholder="{{findUsersCtrl.modalUser.tagline}}" ng-model="findUsersCtrl.newValues.tagline">
+				</div>
+				<br>
+				<div class="input-group">
+					<span class="input-group-addon">Password</span>
+					<input type="password" class="form-control" placeholder="New Password" ng-model="findUsersCtrl.newValues.password">
+				</div>
+				<div class="checkbox">
+					<label>
+						<input type="checkbox" ng-model="findUsersCtrl.newValues.trusted">Trusted</input>
+					</label>
+				</div>
+				<div class="checkbox">
+					<label>
+						<input type="checkbox" ng-model="findUsersCtrl.newValues.taxExempt">Tax Exempt</input>
+					</label>
+				</div>	
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+					<button type="button" class="btn btn-danger" data-dismiss="modal" ng-click="findUsersCtrl.deleteUser()"><span class="glyphicon glyphicon-remove"></span> Delete User</button>
+					<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="findUsersCtrl.submitChanges()"><span class="glyphicon glyphicon-edit"></span> Change Values</button>
+				</div>
+			</div>
+		</div>
+	</div>
