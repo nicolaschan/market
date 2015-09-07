@@ -35,6 +35,10 @@ $ cd market
 ```sh
 $ node index.js
 ```
+if running on port 80, you will probably need to use
+```sh
+$ sudo node index.js
+```
 
 ## Configuration
 Configuration values are specified in the ```config.json``` file. Here are the default values with descriptions.
