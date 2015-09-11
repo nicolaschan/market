@@ -166,7 +166,6 @@ var app = function(user_config) {
 				bankid: String,
 				password: String,
 				balance: Number,
-				unreadMessagesNumber: Number,
 				tagline: String,
 				trusted: Boolean,
 				taxExempt: Boolean
@@ -290,6 +289,25 @@ var app = function(user_config) {
 				});
 			};
 
+			var deleteUser = function(user, callback) {
+				transferMoney({
+					sender: user.id,
+					recipient: market.id,
+					amount: user.balance / 100,
+					memo: 'Account deleted: ' + displayUser(user.username, user.bankid),
+					generated: true
+
+				}, function() {
+					ItemsModel.find({
+						owner: user.id
+					}).remove().exec(function() {
+						logger.warn('TODO: properly remove a deleted user\'s items');
+						user.remove();
+						callback();
+					});
+				});
+			};
+
 			var createUser = function(credentials, success) {
 				var isBankIdValid = function(bankid, result) {
 					bankid = bankid.toLowerCase();
@@ -331,8 +349,7 @@ var app = function(user_config) {
 						username_lower: credentials.username.toLowerCase(),
 						password: credentials.password_hash,
 						bankid: credentials.bankid,
-						balance: 10000000,
-						unreadMessagesNumber: 0,
+						balance: 10000 * 100,
 						tagline: config.default_tagline,
 						trusted: false,
 						taxExempt: false
@@ -731,8 +748,20 @@ var app = function(user_config) {
 					});
 				});
 			};
+			var market;
+			var setMarket = function() {
+				userByBankId(config.tax.recipient, function(err, data) {
+					if (err || !data) {
+						logger.warn('User to receive the tax money could not be found. This is probably a configuration error.')
+					} else {
+						logger.debug('Tax recipent is ' + displayUser(data.username, data.bankid));
+						market = data;
+					}
+				});
+			};
+			setMarket();
 
-			app.post('/', function(req, res) {
+			app.post('/api', function(req, res) {
 				if (req.user) {
 					switch (req.body.page) {
 						case 'profile':
@@ -754,7 +783,6 @@ var app = function(user_config) {
 
 							var sender = req.user;
 							var recipient;
-							var market;
 
 							var taxRate = config.tax.rate;
 
@@ -771,7 +799,7 @@ var app = function(user_config) {
 										})
 									} else {
 										recipient = data;
-										setMarket();
+										continue_sending();
 									}
 								});
 							} else {
@@ -783,23 +811,10 @@ var app = function(user_config) {
 										});
 									} else {
 										recipient = data;
-										setMarket();
-									}
-								});
-							}
-							var setMarket = function() {
-								userByBankId(config.tax.recipient, function(err, data) {
-									if (err || !data) {
-										return res.send({
-											success: false,
-											message: 'The tax entity could not be found, this is probably a configuration error'
-										});
-									} else {
-										market = data;
 										continue_sending();
 									}
 								});
-							};
+							}
 
 							var continue_sending = function() {
 								var getTax = function(amount) {
@@ -1056,27 +1071,11 @@ var app = function(user_config) {
 							});
 							break;
 						case 'buy':
-							var market;
-
 							var taxRate = config.tax.rate;
 
 							if (req.user.taxExempt) {
 								taxRate = 0;
 							}
-
-							var setMarket = function() {
-								userByBankId(config.tax.recipient, function(err, data) {
-									if (err || !data) {
-										return res.send({
-											success: false,
-											message: 'The tax entity could not be found, this is probably a configuration error'
-										});
-									} else {
-										market = data;
-										continue_purchase();
-									}
-								});
-							};
 
 							var continue_purchase = function() {
 								ItemsModel.findOne({
@@ -1150,15 +1149,17 @@ var app = function(user_config) {
 														});
 														tax_transaction.save();
 													}
-													var user_transaction = new TransactionsModel({
-														from: req.user.id,
-														to: item.owner,
-														amount: item.price,
-														memo: 'Purchase of ' + item.name,
-														date: Date.now(),
-														generated: true
-													});
-													user_transaction.save();
+													if (item.price > 0) {
+														var user_transaction = new TransactionsModel({
+															from: req.user.id,
+															to: item.owner,
+															amount: item.price,
+															memo: 'Purchase of ' + item.name,
+															date: Date.now(),
+															generated: true
+														});
+														user_transaction.save();
+													}
 
 													ItemsModel.update({
 														id: item.id
@@ -1199,7 +1200,8 @@ var app = function(user_config) {
 									}
 								});
 							}
-							setMarket();
+
+							continue_purchase();
 							break;
 						case 'quicklink':
 							if (req.body.data.link) {
@@ -1382,9 +1384,10 @@ var app = function(user_config) {
 									}).exec(function(err, user) {
 										if (user) {
 											logger.info('Admin ' + displayUser(req.user.username, req.user.bankid) + ' deleted user ' + displayUser(user.username, user.bankid));
-											user.remove();
-											return res.send({
-												success: true
+											deleteUser(user, function() {
+												return res.send({
+													success: true
+												});
 											});
 										} else {
 											return res.send({
@@ -1408,35 +1411,408 @@ var app = function(user_config) {
 				}
 			});
 
-			var unknown_user_name = '[Deleted User]';
-			app.get('/data', function(req, res) {
+			app.post('/api/send', function(req, res) {
+				var payment = req.body;
+
+				var sender = req.user;
+				var recipient;
+
+				var taxRate = config.tax.rate;
+
+				if (req.user.taxExempt) {
+					taxRate = 0;
+				}
+
+				if (payment.to.substring(0, 1) === '#') {
+					userByBankId(payment.to.substring(1), function(err, data) {
+						if (err || !data) {
+							return res.send({
+								success: false,
+								message: 'User with Bank ID ' + payment.to + ' could not be found'
+							})
+						} else {
+							recipient = data;
+							continue_sending();
+						}
+					});
+				} else {
+					userByUsername(payment.to, function(err, data) {
+						if (err || !data) {
+							return res.send({
+								success: false,
+								message: 'User with username ' + quote(payment.to) + ' could not be found'
+							});
+						} else {
+							recipient = data;
+							continue_sending();
+						}
+					});
+				}
+
+				var continue_sending = function() {
+					var getTax = function(amount) {
+						return Math.ceil(parseFloat(amount) * taxRate * 100) / 100;
+					};
+					var getTotal = function(amount) {
+						return getTax(amount) + amount;
+					};
+					if (sender.id === recipient.id) {
+						return res.send({
+							success: false,
+							message: 'You can\'t send money to yourself!'
+						});
+					}
+
+					var valid_amount = function(amount) {
+						if (amount && amount.toString().indexOf('.') > -1) {
+							if (amount.toString().split('.')[1].length <= 2 && amount > 0) {
+								return true;
+							} else {
+								return false;
+							}
+						} else if (amount > 0) {
+							return true;
+						} else {
+							return false
+						}
+
+					};
+					var valid_memo = function(memo) {
+						var minimum_length = 0;
+						var maximum_length = 32;
+						if (memo < minimum_length || memo > maximum_length) {
+							return false;
+						} else {
+							return true;
+						}
+					};
+
+					if (valid_memo(payment.memo)) {
+						if (valid_amount(payment.amount)) {
+							if (payment.amount > 0) {
+								if (sender.balance / 100 >= getTotal(payment.amount)) {
+									transferMoney({
+										sender: sender.id,
+										recipient: market.id,
+										amount: getTax(payment.amount),
+										memo: (taxRate * 100) + '% automatic tax',
+										generated: true
+
+									}, function() {
+										transferMoney({
+											sender: sender.id,
+											recipient: recipient.id,
+											amount: payment.amount,
+											memo: payment.memo,
+											generated: false
+										}, function() {
+											logger.info(displayUser(sender.username, sender.bankid) + ' sent ' + displayCurrency(payment.amount) + ' to ' + displayUser(recipient.username, recipient.bankid));
+											return res.send({
+												success: true,
+												message: displayCurrency(payment.amount) + ' was sent to ' + recipient.username + ' (#' + recipient.bankid + ')'
+											});
+										});
+									});
+
+								} else {
+									return res.send({
+										success: false,
+										message: 'Not enough funds in your account'
+									});
+								}
+							} else {
+								return res.send({
+									success: false,
+									message: 'You must send some money'
+								});
+							}
+						} else {
+							return res.send({
+								success: false,
+								message: 'Invalid amount'
+							});
+						}
+					} else {
+						return res.send({
+							success: false,
+							message: 'Invalid memo'
+						});
+					}
+				};
+			});
+
+			var unknown_user_name = '[ Deleted User ]';
+			app.get('/api/user', function(req, res) {
 				res.set('Content-Type', 'text/json');
 
 				if (req.user) {
-					switch (req.query.page) {
-						case 'navbar':
-							var taxRate = config.tax.rate;
+					var response = {};
 
-							if (req.user.taxExempt) {
-								taxRate = 0;
-							}
+					var taxRate = config.tax.rate;
+					if (req.user.taxExempt) {
+						taxRate = 0;
+					}
 
-							res.send({
-								username: req.user.username,
-								unreadMessagesNumber: req.user.unreadMessagesNumber,
-								balance: req.user.balance / 100,
-								taxRate: taxRate,
-								isAdmin: checkIsAdmin(req.user.bankid)
+					var fields = [];
+					if (req.query.fields) {
+						fields = req.query.fields.toLowerCase().split(',');
+					} else {
+						response = {
+							username: req.user.username,
+							bankid: req.user.bankid,
+							balance: req.user.balance / 100,
+							tagline: req.user.tagline,
+							taxRate: taxRate,
+							isAdmin: checkIsAdmin(req.user.bankid),
+							trusted: req.user.trusted,
+							taxExempt: req.user.taxExempt
+						};
+					}
+
+
+					for (var i in fields) {
+						switch (fields[i]) {
+							case 'username':
+								response.username = req.user.username;
+								break;
+							case 'bankid':
+								response.bankid = req.user.bankid;
+								break;
+							case 'balance':
+								response.balance = req.user.balance / 100;
+								break;
+							case 'tagline':
+								response.tagline = req.user.tagline;
+								break;
+							case 'taxrate':
+								response.taxRate = taxRate;
+								break;
+							case 'isadmin':
+								response.isAdmin = checkIsAdmin(req.user.bankid);
+								break;
+							case 'trusted':
+								response.trusted = req.user.trusted;
+								break;
+							case 'taxexempt':
+								response.taxExempt = req.user.taxExempt;
+								break;
+						}
+					}
+					res.send(response);
+				} else {
+					res.send(null);
+				}
+			});
+			app.get('/api/buy', function(req, res) {
+				res.set('Content-Type', 'text/json');
+
+				var limit = null;
+				if (req.query.limit !== undefined) {
+					limit = parseInt(req.query.limit);
+				}
+				var skip = 0;
+				if (req.query.skip !== undefined) {
+					skip = parseInt(req.query.skip);
+				}
+				ItemsModel.find({
+					forSale: true,
+					quantity: {
+						$gt: 0
+					}
+				}).skip(skip).limit(limit).select('-instructions').lean().exec(function(err, data) {
+					var synchronouslyConvertIdToUsername = function(data, index, callback) {
+						if (data.length > 0) {
+							userById(data[index].owner, function(err, user) {
+								if (user) {
+									data[index].owner = user.username;
+								} else {
+									data[index].owner = unknown_user_name;
+								}
+								if (index < (data.length - 1)) {
+									synchronouslyConvertIdToUsername(data, index + 1, callback);
+								} else {
+									callback(data);
+								}
 							});
-							break;
-						case 'buy':
+
+						} else {
+							callback(data);
+						}
+					};
+					if (data.length) {
+						synchronouslyConvertIdToUsername(data, 0, function(result) {
+							res.send(result);
+						});
+					} else {
+						res.send([]);
+					}
+				});
+			});
+			app.get('/api/items', function(req, res) {
+				res.set('Content-Type', 'text/json');
+
+				if (req.user) {
+					var limit = null;
+					if (req.query.limit !== undefined) {
+						limit = parseInt(req.query.limit);
+					}
+					var skip = 0;
+					if (req.query.skip !== undefined) {
+						skip = parseInt(req.query.skip);
+					}
+					ItemsModel.find({
+						owner: req.user.id
+					}).skip(skip).limit(limit).lean().exec(function(err, data) {
+						if (data) {
+							res.send(data);
+						} else {
+							res.send([]);
+						}
+					});
+				} else {
+					res.send(null);
+				}
+			});
+			app.get('/api/users', function(req, res) {
+				res.set('Content-Type', 'text/json');
+
+				var limit = null;
+				if (req.query.limit !== undefined) {
+					limit = parseInt(req.query.limit);
+				}
+				var skip = 0;
+				if (req.query.skip !== undefined) {
+					skip = parseInt(req.query.skip);
+				}
+				UsersModel.find({}).sort({
+					balance: -1
+				}).skip(skip).limit(limit).select('id username bankid tagline balance trusted taxExempt').lean().exec(function(err, data) {
+					if (data) {
+						for (var i in data) {
+							data[i].balance = data[i].balance / 100;
+						}
+						res.send(data);
+					} else {
+						res.send([]);
+					}
+				});
+			});
+			app.get('/api/transactions', function(req, res) {
+				res.set('Content-Type', 'text/json');
+
+				var limit = null;
+				if (req.query.limit !== undefined) {
+					limit = parseInt(req.query.limit);
+				}
+				var skip = 0;
+				if (req.query.skip !== undefined) {
+					skip = parseInt(req.query.skip);
+				}
+
+				if (req.user) {
+					TransactionsModel.find({
+						$or: [{
+							from: req.user.id
+						}, {
+							to: req.user.id
+						}]
+					}).skip(skip).limit(limit).sort({
+						date: -1
+					}).lean().exec(function(err, data) {
+						if (data) {
 							var synchronouslyConvertIdToUsername = function(data, index, callback) {
 								if (data.length > 0) {
-									userById(data[index].owner, function(err, user) {
+									data[index].date = new Date(data[index].date).toString();
+
+									userById(data[index].from, function(err, user) {
 										if (user) {
-											data[index].owner = user.username;
+											data[index].from = {};
+											data[index].from.username = user.username;
+											data[index].from.bankid = user.bankid;
 										} else {
-											data[index].owner = unknown_user_name;
+											data[index].from = {};
+											data[index].from.username = unknown_user_name;
+											data[index].from.bankid = unknown_user_name;
+										}
+										userById(data[index].to, function(err, user) {
+											if (user) {
+												data[index].to = {};
+												data[index].to.username = user.username;
+												data[index].to.bankid = user.bankid;
+											} else {
+												data[index].to = {};
+												data[index].to.username = unknown_user_name;
+												data[index].to.bankid = unknown_user_name;
+											}
+											if (index < (data.length - 1)) {
+												synchronouslyConvertIdToUsername(data, index + 1, callback);
+											} else {
+												callback(data);
+											}
+										});
+
+									});
+
+								} else {
+									callback(data);
+								}
+							};
+							synchronouslyConvertIdToUsername(data, 0, function(transactions) {
+								res.send(transactions);
+							});
+						} else {
+							res.send([]);
+						}
+					});
+				} else {
+					res.send(null);
+				}
+			});
+			app.get('/api/receipts', function(req, res) {
+				res.set('Content-Type', 'text/json');
+
+				var limit = null;
+				if (req.query.limit !== undefined) {
+					limit = parseInt(req.query.limit);
+				}
+				var skip = 0;
+				if (req.query.skip !== undefined) {
+					skip = parseInt(req.query.skip);
+				}
+
+				if (req.user) {
+					ReceiptsModel.find({
+						$or: [{
+							buyer: req.user.id
+						}, {
+							seller: req.user.id
+						}]
+					}).skip(skip).limit(limit).sort({
+						date: -1
+					}).lean().exec(function(err, data) {
+						var synchronouslyConvertIdToUsername = function(data, index, callback) {
+							if (data.length > 0) {
+								data[index].date = new Date(data[index].date).toString();
+
+								userById(data[index].seller, function(err, user) {
+									if (user) {
+										data[index].seller = {};
+										data[index].seller.username = user.username;
+										data[index].seller.bankid = user.bankid;
+									} else {
+										data[index].seller = {};
+										data[index].seller.username = unknown_user_name;
+										data[index].seller.bankid = unknown_user_name;
+									}
+									userById(data[index].buyer, function(err, user) {
+										if (user) {
+											data[index].buyer = {};
+											data[index].buyer.username = user.username;
+											data[index].buyer.bankid = user.bankid;
+										} else {
+											data[index].buyer = {};
+											data[index].buyer.username = unknown_user_name;
+											data[index].buyer.bankid = unknown_user_name;
 										}
 										if (index < (data.length - 1)) {
 											synchronouslyConvertIdToUsername(data, index + 1, callback);
@@ -1445,219 +1821,47 @@ var app = function(user_config) {
 										}
 									});
 
-								} else {
-									callback(data);
-								}
-							};
-							ItemsModel.find({
-								forSale: true,
-								quantity: {
-									$gt: 0
-								}
-							}).select('-instructions').lean().exec(function(err, data) {
-								if (data.length) {
-									synchronouslyConvertIdToUsername(data, 0, function(result) {
-										res.send({
-											items: result
-										});
-									});
-								} else {
-									res.send({
-										balance: req.user.balance / 100,
-										taxRate: taxRate,
-										items: []
-									});
-								}
-
-							});
-							break;
-						case 'sell':
-							ItemsModel.find({
-								owner: req.user.id
-							}).lean().exec(function(err, data) {
-								res.send(data)
-							});
-							break;
-						case 'profile':
-							res.send({
-								username: req.user.username,
-								bankid: req.user.bankid,
-								databaseid: req.user.id,
-								tagline: req.user.tagline
-							});
-							break;
-						case 'find':
-							UsersModel.find({}).sort({
-								balance: -1
-							}).lean().exec(function(err, data) {
-								var users = [];
-								for (var i in data) {
-									var user = {
-										id: data[i].id,
-										username: data[i].username,
-										bankid: data[i].bankid,
-										tagline: data[i].tagline,
-										balance: data[i].balance / 100,
-										trusted: data[i].trusted,
-										taxExempt: data[i].taxExempt
-									};
-									users.push(user);
-								}
-								res.send(users);
-							});
-							break;
-						case 'transactions':
-							TransactionsModel.find({
-								$or: [{
-									from: req.user.id
-								}, {
-									to: req.user.id
-								}]
-							}).sort({
-								date: -1
-							}).lean().exec(function(err, data) {
-								var synchronouslyConvertIdToUsername = function(data, index, callback) {
-									if (data.length > 0) {
-										data[index].date = new Date(data[index].date).toString();
-
-										userById(data[index].from, function(err, user) {
-											if (user) {
-												data[index].from = {};
-												data[index].from.username = user.username;
-												data[index].from.bankid = user.bankid;
-											} else {
-												data[index].from = {};
-												data[index].from.username = unknown_user_name;
-												data[index].from.bankid = unknown_user_name;
-											}
-											userById(data[index].to, function(err, user) {
-												if (user) {
-													data[index].to = {};
-													data[index].to.username = user.username;
-													data[index].to.bankid = user.bankid;
-												} else {
-													data[index].to = {};
-													data[index].to.username = unknown_user_name;
-													data[index].to.bankid = unknown_user_name;
-												}
-												if (index < (data.length - 1)) {
-													synchronouslyConvertIdToUsername(data, index + 1, callback);
-												} else {
-													callback(data);
-												}
-											});
-
-										});
-
-									} else {
-										callback(data);
-									}
-								};
-								synchronouslyConvertIdToUsername(data, 0, function(transactions) {
-									res.send({
-										transactions: transactions
-									});
-								});
-							});
-							break;
-						case 'receipts':
-							ReceiptsModel.find({
-								$or: [{
-									buyer: req.user.id
-								}, {
-									seller: req.user.id
-								}]
-							}).sort({
-								date: -1
-							}).lean().exec(function(err, data) {
-								var synchronouslyConvertIdToUsername = function(data, index, callback) {
-									if (data.length > 0) {
-										data[index].date = new Date(data[index].date).toString();
-
-										userById(data[index].seller, function(err, user) {
-											if (user) {
-												data[index].seller = {};
-												data[index].seller.username = user.username;
-												data[index].seller.bankid = user.bankid;
-											} else {
-												data[index].seller = {};
-												data[index].seller.username = unknown_user_name;
-												data[index].seller.bankid = unknown_user_name;
-											}
-											userById(data[index].buyer, function(err, user) {
-												if (user) {
-													data[index].buyer = {};
-													data[index].buyer.username = user.username;
-													data[index].buyer.bankid = user.bankid;
-												} else {
-													data[index].buyer = {};
-													data[index].buyer.username = unknown_user_name;
-													data[index].buyer.bankid = unknown_user_name;
-												}
-												if (index < (data.length - 1)) {
-													synchronouslyConvertIdToUsername(data, index + 1, callback);
-												} else {
-													callback(data);
-												}
-											});
-
-										});
-
-									} else {
-										callback(data);
-									}
-								};
-								synchronouslyConvertIdToUsername(data, 0, function(receipts) {
-									res.send({
-										receipts: receipts
-									});
-								});
-							});
-							break;
-						case 'send':
-							var taxRate = config.tax.rate;
-
-							if (req.user.taxExempt) {
-								taxRate = 0;
-							}
-							res.send({
-								taxRate: taxRate,
-								balance: req.user.balance / 100
-							});
-							break;
-						case 'admin-logs':
-							if (checkIsAdmin(req.user.bankid)) {
-								var lines = [];
-
-								var LineByLineReader = require('line-by-line');
-								var lr = new LineByLineReader('logs/' + config.logger.filename);
-
-								lr.on('line', function(line) {
-									lines.push(line);
 								});
 
-								lr.on('end', function() {
-									if (req.query.limit) {
-										lines = lines.slice(Math.max(lines.length - parseInt(req.query.limit), 1));
-									}
-
-									res.send({
-										lines: lines
-									});
-								});
 							} else {
-								logger.warn(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') requested the admin logs but is not an admin');
-								res.send(null);
+								callback(data);
 							}
-							break;
-						case 'admin-logs-download':
-							if (checkIsAdmin(req.user.bankid)) {
-								res.sendFile(__dirname + '/logs/' + config.logger.filename);
-							} else {
-								logger.warn(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') requested the admin logs but is not an admin');
-								res.send(null);
-							}
-							break;
+						};
+						synchronouslyConvertIdToUsername(data, 0, function(receipts) {
+							res.send(receipts);
+						});
+					});
+				} else {
+					res.send(null);
+				}
+			});
+			app.get('/api/admin/logs', function(req, res) {
+				if (req.user) {
+					if (checkIsAdmin(req.user.bankid)) {
+						if (req.query.lines !== undefined) {
+							var number_of_lines = parseInt(req.query.lines);
+
+							var lines = [];
+
+							var LineByLineReader = require('line-by-line');
+							var lr = new LineByLineReader('logs/' + config.logger.filename);
+
+							lr.on('line', function(line) {
+								lines.push(line);
+							});
+
+							lr.on('end', function() {
+								res.set('Content-Type', 'text/json');
+								res.send(lines.slice(0, number_of_lines));
+							});
+						} else {
+							res.set('Content-Type', 'text/plain');
+							res.sendFile(__dirname + '/logs/' + config.logger.filename);
+						}
+
+					} else {
+						logger.warn(displayUser(req.user.username, req.user.bankid) + ' (at ' + req.ip + ') requested the admin logs but is not an admin');
+						res.send(null);
 					}
 				} else {
 					res.send(null);
@@ -1689,11 +1893,11 @@ var app = function(user_config) {
 									return res.sendFile(image_url);
 								} else {
 									logger.warn(displayUser(req.user.username, req.user.bankid) + ' requested image ' + req.query.id + ' but an error occurred, error code: ' + err.code);
-									return res.sendFile(__dirname + '/webcontent/img/not-found.png');
+									return res.sendFile(__dirname + '/webcontent/img/not-found.jpg');
 								}
 							});
 						} else {
-							return res.sendFile(__dirname + '/webcontent/img/not-found.png');
+							return res.sendFile(__dirname + '/webcontent/img/not-found.jpg');
 						}
 					});
 				} else {
@@ -1710,7 +1914,7 @@ var app = function(user_config) {
 					logger.trace('Checking if startup is complete...');
 					if (!is_ready) {
 						// mongoose connection should be open and webserver should be started to be considered ready
-						if ((mongoose.connection.readyState === 1) && (web_server_started)) {
+						if ((mongoose.connection.readyState === 1) && (web_server_started) && (market)) {
 							logger.trace('Startup is complete!');
 							is_ready = true;
 							logger.debug('Startup time was ' + (Date.now() - start_time) / 1000 + ' sec');

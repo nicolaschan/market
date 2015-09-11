@@ -7,155 +7,158 @@
 	<a href="javascript:void(0)" class="close" ng-click="sellItemsCtrl.successMessage = ''" aria-label="close">&times;</a>
 	<strong>Success!</strong> {{sellItemsCtrl.successMessage}}
 </div>
-<div class="row">
-	<div class="col-sm-12">
-		<button type="button" class="btn btn-success" data-toggle="modal" data-target="#newItemSell"><span class="glyphicon glyphicon-plus"></span> Add New Item</button>
-	</div>
-	<div id="newItemSell" class="modal fade" role="dialog">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" class="close" data-dismiss="modal">&times;</button>
-					<h4 class="modal-title">Sell A New Item</h4>
-				</div>
-				<div class="modal-body">
-					<p>Add a new item to the market.</p>
-					<div class="input-group">
-						<span class="input-group-addon" id="basic-addon1">Name</span>
-						<input type="text" class="form-control" placeholder="Item name" aria-describedby="basic-addon1" ng-model="sellItemsCtrl.listingItem.name" maxlength="32">
+<div class="container">
+	<div class="row">
+		<div class="col-sm-12">
+			<button type="button" class="btn btn-success" data-toggle="modal" data-target="#newItemSell"><span class="glyphicon glyphicon-plus"></span> Add New Item</button>
+		</div>
+		<div id="newItemSell" class="modal fade" role="dialog">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal">&times;</button>
+						<h4 class="modal-title">Sell A New Item</h4>
 					</div>
-					<br>
-					<div class="input-group">
-						<span class="input-group-addon" id="basic-addon2">Description</span>
-						<input type="text" class="form-control" placeholder="Describe the item" aria-describedby="basic-addon2" ng-model="sellItemsCtrl.listingItem.description" maxlength="140">
+					<div class="modal-body">
+						<p>Add a new item to the market.</p>
+						<div class="input-group">
+							<span class="input-group-addon" id="basic-addon1">Name</span>
+							<input type="text" class="form-control" placeholder="Item name" aria-describedby="basic-addon1" ng-model="sellItemsCtrl.listingItem.name" maxlength="32">
+						</div>
+						<br>
+						<div class="input-group">
+							<span class="input-group-addon" id="basic-addon2">Description</span>
+							<input type="text" class="form-control" placeholder="Describe the item" aria-describedby="basic-addon2" ng-model="sellItemsCtrl.listingItem.description" maxlength="140">
+						</div>
+						<br>
+						<div class="input-group">
+							<span class="input-group-addon">$</span>
+							<input type="number" class="form-control" min="0" max="1000000000" placeholder="Price" ng-model="sellItemsCtrl.listingItem.price">
+						</div>
+						<br>
+						<div class="input-group">
+							<span class="input-group-addon">Quantity</span>
+							<input type="number" class="form-control" min="1" max="1000000000" placeholder="Quantity" ng-model="sellItemsCtrl.listingItem.quantity">
+						</div>
+						<br>
+						<div class="input-group">
+							<span class="input-group-addon">Buyer Instructions</span>
+							<input type="text" class="form-control" min="1" placeholder="Information for the buyer once purchased (coords, etc.)" ng-model="sellItemsCtrl.listingItem.instructions" maxlength="140">
+						</div>
+						<br>
+						<div class="input-group">
+							<span class="input-group-addon">Image</span>
+							<input id="image" type="file" class="form-control" fileread="sellItemsCtrl.listingItem.image" accept="image/png,image/jpg">
+						</div>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" ng-model="sellItemsCtrl.listingItem.forSale">For Sale</input>
+							</label>
+						</div>
 					</div>
-					<br>
-					<div class="input-group">
-						<span class="input-group-addon">$</span>
-						<input type="number" class="form-control" min="0" max="1000000000" placeholder="Price" ng-model="sellItemsCtrl.listingItem.price">
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+						<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="sellItemsCtrl.addItem()">Add to Market</button>
 					</div>
-					<br>
-					<div class="input-group">
-						<span class="input-group-addon">Quantity</span>
-						<input type="number" class="form-control" min="1" max="1000000000" placeholder="Quantity" ng-model="sellItemsCtrl.listingItem.quantity">
-					</div>
-					<br>
-					<div class="input-group">
-						<span class="input-group-addon">Buyer Instructions</span>
-						<input type="text" class="form-control" min="1" placeholder="Information for the buyer once purchased (coords, etc.)" ng-model="sellItemsCtrl.listingItem.instructions" maxlength="140">
-					</div>
-					<br>
-					<div class="input-group">
-						<span class="input-group-addon">Image</span>
-						<input id="image" type="file" class="form-control" fileread="sellItemsCtrl.listingItem.image" accept="image/png,image/jpg">
-					</div>
-					<div class="checkbox">
-						<label>
-							<input type="checkbox" ng-model="sellItemsCtrl.listingItem.forSale">For Sale</input>
-						</label>
-					</div>				
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-					<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="sellItemsCtrl.addItem()">Add to Market</button>
 				</div>
 			</div>
 		</div>
 	</div>
-</div>
-<loading-icon ng-hide="sellItemsCtrl.loaded"></loading-icon>
-<br>
-<div class="row">
-	<div class="col-sm-4" ng-repeat="item in sellItemsCtrl.getItems()">
-		<div class="thumbnail" style="word-wrap:break-word;">
-			<img ng-src="{{contentCtrl.imageLink(item.image)}}" alt="{{item.name}}">
-			<div class="caption">
-				<h3>
+	<loading-icon ng-hide="sellItemsCtrl.loaded"></loading-icon>
+	<br>
+	<div class="row">
+		<div class="col-sm-4" ng-repeat="item in sellItemsCtrl.getItems()">
+			<div class="thumbnail" style="word-wrap:break-word;">
+				<img ng-src="{{contentCtrl.imageLink(item.image)}}" alt="{{item.name}}">
+				<div class="caption">
+					<h3>
 					{{item.name}}
 					<br>
 					<small>@{{item.quicklink}}</small>
-				</h3>
-				<p>{{item.description}}</p>
-				<h4 ng-show="item.forSale">{{item.price | currency}}</h4>
-				<h4 ng-hide="item.forSale">Not for sale</h4>
-				<p>
-					<div class="row">
-						<div class="col-sm-8">
-							<button type="button" class="btn btn-default" data-toggle="modal" data-target="#itemEdit{{sellItemsCtrl.getItemIndex(item)}}" ng-click="sellItemsCtrl.setEditingItem(item)"><span class="glyphicon glyphicon-edit"></span> Edit Item</button>
+					</h3>
+					<p>{{item.description}}</p>
+					<h4 ng-show="item.forSale">{{item.price | currency}}</h4>
+					<h4 ng-hide="item.forSale">Not for sale</h4>
+					<p>
+						<div class="row">
+							<div class="col-sm-8">
+								<button type="button" class="btn btn-default" data-toggle="modal" data-target="#itemEdit{{sellItemsCtrl.getItemIndex(item)}}" ng-click="sellItemsCtrl.setEditingItem(item)"><span class="glyphicon glyphicon-edit"></span> Edit Item</button>
+							</div>
+							<div class="col-sm-4">
+								<button type="button" class="btn btn-danger" data-toggle="modal" data-target="#itemSell{{sellItemsCtrl.getItemIndex(item)}}"><span class="glyphicon glyphicon-remove"></span> Delete</button>
+							</div>
 						</div>
-						<div class="col-sm-4">
-							<button type="button" class="btn btn-danger" data-toggle="modal" data-target="#itemSell{{sellItemsCtrl.getItemIndex(item)}}"><span class="glyphicon glyphicon-remove"></span> Delete</button>
+					</p>
+					<div id="itemSell{{sellItemsCtrl.getItemIndex(item)}}" class="modal fade" role="dialog">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<button type="button" class="close" data-dismiss="modal">&times;</button>
+									<h4 class="modal-title">Confirm Delete</h4>
+								</div>
+								<div class="modal-body">
+									<p>Are you sure you want to remove <strong>{{item.name}}</strong> from the market?</p>
+									<p>Nobody will be able to purchase this item once it is deleted.</p>
+								</div>
+								<div class="modal-footer">
+									<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+									<button type="button" class="btn btn-danger" data-dismiss="modal" ng-click="sellItemsCtrl.deleteItem(item.id)">Confirm</button>
+								</div>
+							</div>
 						</div>
 					</div>
-				</p>
-				<div id="itemSell{{sellItemsCtrl.getItemIndex(item)}}" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-header">
-								<button type="button" class="close" data-dismiss="modal">&times;</button>
-								<h4 class="modal-title">Confirm Delete</h4>
-							</div>
-							<div class="modal-body">
-								<p>Are you sure you want to remove <strong>{{item.name}}</strong> from the market?</p>
-								<p>Nobody will be able to purchase this item once it is deleted.</p>
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-								<button type="button" class="btn btn-danger" data-dismiss="modal" ng-click="sellItemsCtrl.deleteItem(item.id)">Confirm</button>
+					<div id="itemEdit{{sellItemsCtrl.getItemIndex(item)}}" class="modal fade" role="dialog">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<button type="button" class="close" data-dismiss="modal">&times;</button>
+									<h4 class="modal-title">Edit Item</h4>
+								</div>
+								<div class="modal-body">
+									<p>Edit your item.</p>
+									<div class="input-group">
+										<span class="input-group-addon" id="basic-addon1">Name</span>
+										<input type="text" class="form-control" placeholder="Item name" aria-describedby="basic-addon1" ng-model="sellItemsCtrl.editingItem.name" maxlength="32">
+									</div>
+									<br>
+									<div class="input-group">
+										<span class="input-group-addon" id="basic-addon2">Description</span>
+										<input type="text" class="form-control" placeholder="Describe the item" aria-describedby="basic-addon2" ng-model="sellItemsCtrl.editingItem.description" maxlength="140">
+									</div>
+									<br>
+									<div class="input-group">
+										<span class="input-group-addon">$</span>
+										<input type="number" class="form-control" min="0" max="1000000000" placeholder="Price" ng-model="sellItemsCtrl.editingItem.price" >
+									</div>
+									<br>
+									<div class="input-group">
+										<span class="input-group-addon">Quantity</span>
+										<input type="number" class="form-control" min="1" max="1000000000" placeholder="Quantity" ng-model="sellItemsCtrl.editingItem.quantity">
+									</div>
+									<br>
+									<div class="input-group">
+										<span class="input-group-addon">Buyer Instructions</span>
+										<input type="text" class="form-control" min="1" placeholder="Information for the buyer once purchased (coords, etc.)" ng-model="sellItemsCtrl.editingItem.instructions" maxlength="140">
+									</div>
+									<br>
+									<div class="input-group">
+										<span class="input-group-addon">Image</span>
+										<input id="image" type="file" class="form-control" fileread="sellItemsCtrl.editingItem.image" accept="image/png,image/jpg">
+									</div>
+									<div class="checkbox">
+										<label>
+											<input type="checkbox" ng-model="sellItemsCtrl.editingItem.forSale">For Sale</input>
+										</label>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+									<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="sellItemsCtrl.editItem()">Save Changes</button>
+								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-				<div id="itemEdit{{sellItemsCtrl.getItemIndex(item)}}" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-header">
-								<button type="button" class="close" data-dismiss="modal">&times;</button>
-								<h4 class="modal-title">Edit Item</h4>
-							</div>
-							<div class="modal-body">
-								<p>Edit your item.</p>
-								<div class="input-group">
-									<span class="input-group-addon" id="basic-addon1">Name</span>
-									<input type="text" class="form-control" placeholder="Item name" aria-describedby="basic-addon1" ng-model="sellItemsCtrl.editingItem.name" maxlength="32">
-								</div>
-								<br>
-								<div class="input-group">
-									<span class="input-group-addon" id="basic-addon2">Description</span>
-									<input type="text" class="form-control" placeholder="Describe the item" aria-describedby="basic-addon2" ng-model="sellItemsCtrl.editingItem.description" maxlength="140">
-								</div>
-								<br>
-								<div class="input-group">
-									<span class="input-group-addon">$</span>
-									<input type="number" class="form-control" min="0" max="1000000000" placeholder="Price" ng-model="sellItemsCtrl.editingItem.price" >
-								</div>
-								<br>
-								<div class="input-group">
-									<span class="input-group-addon">Quantity</span>
-									<input type="number" class="form-control" min="1" max="1000000000" placeholder="Quantity" ng-model="sellItemsCtrl.editingItem.quantity">
-								</div>
-								<br>
-								<div class="input-group">
-									<span class="input-group-addon">Buyer Instructions</span>
-									<input type="text" class="form-control" min="1" placeholder="Information for the buyer once purchased (coords, etc.)" ng-model="sellItemsCtrl.editingItem.instructions" maxlength="140">
-								</div>
-								<br>
-								<div class="input-group">
-									<span class="input-group-addon">Image</span>
-									<input id="image" type="file" class="form-control" fileread="sellItemsCtrl.editingItem.image" accept="image/png,image/jpg">
-								</div>
-								<div class="checkbox">
-									<label>
-										<input type="checkbox" ng-model="sellItemsCtrl.editingItem.forSale">For Sale</input>
-									</label>
-								</div>				
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-								<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="sellItemsCtrl.editItem()">Save Changes</button>
-							</div>
-						</div>
-					</div>
 			</div>
 		</div>
 	</div>

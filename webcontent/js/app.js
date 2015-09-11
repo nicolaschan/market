@@ -52,9 +52,9 @@
 
 					this.loaded = false;
 					updaters.buy = function() {
-						$http.get('/data?page=buy').then(function(response) {
-							store.allItems = response.data.items;
-							store.items = response.data.items;
+						$http.get('/api/buy').then(function(response) {
+							store.allItems = response.data;
+							store.items = response.data;
 							store.loaded = true;
 						});
 					};
@@ -103,7 +103,7 @@
 					};
 
 					this.buy = function(item) {
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'buy',
 							data: {
 								item: item,
@@ -137,7 +137,7 @@
 
 					this.loaded = false;
 					updaters.items = function() {
-						$http.get('/data?page=sell').then(function(response) {
+						$http.get('/api/items').then(function(response) {
 							store.allItems = response.data;
 							store.items = response.data;
 							store.loaded = true;
@@ -192,7 +192,7 @@
 							forSale: false
 						};
 
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'items',
 							data: {
 								item: listingItemTemp
@@ -213,7 +213,7 @@
 						});
 					};
 					this.deleteItem = function(itemId) {
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'items-delete',
 							data: {
 								itemId: itemId
@@ -235,7 +235,7 @@
 
 					this.editingItem = {};
 					this.editItem = function() {
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'items-edit',
 							data: {
 								item: this.editingItem
@@ -271,9 +271,9 @@
 					this.receipts = this.allReceipts;
 
 					this.loaded = false;
-					$http.get('/data?page=receipts').then(function(response) {
-						store.allReceipts = response.data.receipts;
-						store.receipts = response.data.receipts;
+					$http.get('/api/receipts').then(function(response) {
+						store.allReceipts = response.data;
+						store.receipts = response.data;
 						store.loaded = true;
 					});
 
@@ -356,9 +356,9 @@
 					this.transactions = this.allTransactions;
 
 					this.loaded = false;
-					$http.get('/data?page=transactions').then(function(response) {
-						store.allTransactions = response.data.transactions;
-						store.transactions = response.data.transactions;
+					$http.get('/api/transactions').then(function(response) {
+						store.allTransactions = response.data;
+						store.transactions = response.data;
 						store.loaded = true;
 					});
 
@@ -450,12 +450,7 @@
 							memo: this.memo
 						};
 
-						$http.post('/', {
-							page: 'send',
-							data: {
-								payment: payment
-							}
-						}).then(function(response) {
+						$http.post('/api/send', payment).then(function(response) {
 							if (response.data.success) {
 								store.errorMessage = '';
 								store.successMessage = response.data.message;
@@ -644,7 +639,7 @@
 					this.loaded = false;
 
 					updaters.find = function() {
-						$http.get('/data?page=find').then(function(response) {
+						$http.get('/api/users').then(function(response) {
 							store.allUsers = response.data;
 							store.users = response.data;
 							store.loaded = true;
@@ -715,7 +710,7 @@
 							trusted: false,
 							taxExempt: false
 						};
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'find-edit',
 							data: {
 								id: this.modalUser.id,
@@ -747,7 +742,7 @@
 							trusted: false,
 							taxExempt: false
 						};
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'find-delete',
 							data: {
 								id: this.modalUser.id
@@ -774,13 +769,9 @@
 				controller: function($http) {
 					var store = this;
 
-					this.Username = '';
-					this.BankId = '';
 					this.Tagline = '';
 
-					$http.get('/data?page=profile').then(function(response) {
-						store.Username = response.data.username;
-						store.BankId = response.data.bankid;
+					$http.get('/api/user?fields=bankid,tagline').then(function(response) {
 						store.CurrentTagline = response.data.tagline;
 						store.Tagline = response.data.tagline;
 					});
@@ -788,7 +779,7 @@
 					this.errorMessage = '';
 					this.successMessage = '';
 					this.updateProfile = function() {
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'profile',
 							data: {
 								tagline: this.Tagline
@@ -824,7 +815,7 @@
 
 						var min_password_length = 1;
 						if (passwordTemp.length >= min_password_length) {
-							$http.post('/', {
+							$http.post('/api', {
 								page: 'account-password',
 								data: {
 									password: passwordTemp
@@ -859,7 +850,7 @@
 						store.username = '';
 
 						if (usernameTemp.length >= 0) {
-							$http.post('/', {
+							$http.post('/api', {
 								page: 'account-username',
 								data: {
 									username: usernameTemp
@@ -963,7 +954,7 @@
 					this.loaded = false;
 
 					updaters.adminLogs = function() {
-						$http.get('/data?page=admin-logs&limit=16').then(function(response) {
+						$http.get('/api/admin/logs?lines=16').then(function(response) {
 							if (!response.data) {
 								$location.path('/denied');
 							} else {
@@ -989,15 +980,13 @@
 			controller: function($http, $window, $location) {
 				var store = this;
 
-				this.unreadMessagesNumber = 0;
-
 				updaters.navbar = function() {
-					$http.get('/data?page=navbar').then(function(response) {
+					$http.get('/api/user?fields=username,bankid,balance,taxRate,isAdmin').then(function(response) {
 						if (!response.data) {
 							$window.location.href = '/signin';
 						}
 						global_values.username = response.data.username;
-						store.unreadMessagesNumber = response.data.unreadMessagesNumber;
+						global_values.bankid = response.data.bankid;
 						global_values.balance = response.data.balance;
 						global_values.taxRate = response.data.taxRate;
 						global_values.isAdmin = response.data.isAdmin;
@@ -1028,7 +1017,7 @@
 					this.quicklink = '';
 
 					if (quicklinkTemp.length > 1) {
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'quicklink',
 							data: {
 								link: quicklinkTemp
@@ -1058,7 +1047,7 @@
 
 				this.modalConfirm = function() {
 					if (this.quicklinkData.item) {
-						$http.post('/', {
+						$http.post('/api', {
 							page: 'buy',
 							data: {
 								item: this.quicklinkData.item,
@@ -1083,12 +1072,7 @@
 						});
 					}
 					if (this.quicklinkData.payment) {
-						$http.post('/', {
-							page: 'send',
-							data: {
-								payment: this.quicklinkData.payment
-							}
-						}).then(function(response) {
+						$http.post('/api/send', this.quicklinkData.payment).then(function(response) {
 							if (response.data.success) {
 								store.errorMessage = '';
 								store.successMessage = response.data.message;

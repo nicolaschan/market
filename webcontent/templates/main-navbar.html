@@ -15,20 +15,20 @@
 				<li class="dropdown">
 					<a class="dropdown-toggle" data-toggle="dropdown" href="#" onClick="return false;">Market <span class="caret"></span></a>
 					<ul class="dropdown-menu">
-						<li><a href="#buy">Buy Items</a></li>
-						<li><a href="#items">My Items</a></li>
-						<li><a href="#receipts">Receipts</a></li>
+						<li ng-class="{ active:contentCtrl.isCurrentPage('buy') }"><a href="#buy">Buy Items</a></li>
+						<li ng-class="{ active:contentCtrl.isCurrentPage('items') }"><a href="#items">My Items</a></li>
+						<li ng-class="{ active:contentCtrl.isCurrentPage('receipts') }"><a href="#receipts">Receipts</a></li>
 					</ul>
 				</li>
 				<li class="dropdown">
 					<a class="dropdown-toggle" data-toggle="dropdown" href="#" onClick="return false;">Money <span class="caret"></span></a>
 					<ul class="dropdown-menu">
-						<li><a href="#balance">Balance</a></li>
-						<li><a href="#transactions">Transactions</a></li>
-						<li><a href="#send">Send Money</a></li>
+						<li ng-class="{ active:contentCtrl.isCurrentPage('balance') }"><a href="#balance">Balance</a></li>
+						<li ng-class="{ active:contentCtrl.isCurrentPage('transactions') }"><a href="#transactions">Transactions</a></li>
+						<li ng-class="{ active:contentCtrl.isCurrentPage('send') }"><a href="#send">Send Money</a></li>
 					</ul>
 				</li>
-				<li ng-class="{ active:navCtrl.isCurrentPageByIndex(3) }">
+				<li ng-class="{ active:contentCtrl.isCurrentPage('find') }">
 					<a href="#find">
 					Find Users</span>
 				</a>
@@ -41,22 +41,17 @@
 				</div>
 			</form>
 			
-			<li ng-class="{ active:navCtrl.isCurrentPageByIndex(3) }">
+			<li>
 				<a href="#balance">
 					{{contentCtrl.globalValues.balance | currency}}
 				</a>
 			</li>
-			<!--<li ng-class="{ active:navCtrl.isCurrentPageByIndex(3) }">
-									<a href="#recent">
-															Messages <span class="badge">{{navCtrl.unreadMessagesNumber}}</span>
-									</a>
-			</li>-->
 			<li class="dropdown">
-				<a class="dropdown-toggle" data-toggle="dropdown" href="#" onClick="return false;"><span class="glyphicon glyphicon-user"></span> {{contentCtrl.globalValues.username}} <span class="caret"></span></a>
+				<a class="dropdown-toggle" data-toggle="dropdown" href="#" onClick="return false;"><span class="glyphicon glyphicon-user"></span> {{contentCtrl.globalValues.username}} (#{{contentCtrl.globalValues.bankid}}) <span class="caret"></span></a>
 				<ul class="dropdown-menu">
-					<li><a href="#profile">My Profile</a></li>
-					<li><a href="#account">My Account</a></li>
-					<li ng-show="contentCtrl.globalValues.isAdmin"><a href="#admin/logs">Admin Controls</a></li>
+					<li ng-class="{ active:contentCtrl.isCurrentPage('profile') }"><a href="#profile">My Profile</a></li>
+					<li ng-class="{ active:contentCtrl.isCurrentPage('account') }"><a href="#account">My Account</a></li>
+					<li ng-class="{ active:contentCtrl.isCurrentPage('admin/logs') }" ng-show="contentCtrl.globalValues.isAdmin"><a href="#admin/logs">Admin Controls</a></li>
 					<li><a href="/signout"><span class="glyphicon glyphicon-log-out"></span> Sign Out</a></li>
 				</ul>
 			</li>
