@@ -958,7 +958,7 @@
 							if (!response.data) {
 								$location.path('/denied');
 							} else {
-								store.lines = response.data.lines;
+								store.lines = response.data;
 								store.loaded = true;
 								setTimeout(updaters.adminLogs, 1000);
 							}

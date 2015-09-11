@@ -551,7 +551,7 @@ var app = function(user_config) {
 				});
 			});
 
-			app.post('/signin', passport.authenticate('local', {
+			app.post('/api/signin', passport.authenticate('local', {
 				successRedirect: '/#/profile',
 				failureRedirect: '/signin',
 				failureFlash: true
