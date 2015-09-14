@@ -22,5 +22,8 @@
 		"recipient": "tax"
 	},
 	"admins": ["market"],
+	"money_source": ["deposit"],
+	"money_void": ["void"],
+	"starting_balance": 0,
 	"default_tagline": "A market user"
 }

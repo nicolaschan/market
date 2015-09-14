@@ -486,6 +486,9 @@
 							return true;
 						};
 						var enough_funds = function(balance, amount) {
+							if (global_values.isMoneySource) {
+								return true;
+							}
 							if (balance < amount) {
 								return false;
 							} else {
@@ -981,7 +984,7 @@
 				var store = this;
 
 				updaters.navbar = function() {
-					$http.get('/api/user?fields=username,bankid,balance,taxRate,isAdmin').then(function(response) {
+					$http.get('/api/user?fields=username,bankid,balance,taxRate,isAdmin,isMoneySource').then(function(response) {
 						if (!response.data) {
 							$window.location.href = '/signin';
 						}
@@ -990,6 +993,7 @@
 						global_values.balance = response.data.balance;
 						global_values.taxRate = response.data.taxRate;
 						global_values.isAdmin = response.data.isAdmin;
+						global_values.isMoneySource = response.data.isMoneySource;
 						setTimeout(updaters.navbar, 1000);
 					});
 				};

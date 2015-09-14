@@ -114,20 +114,16 @@ var app = function(user_config) {
 		logger.trace('Connecting to database at ' + getDatabaseURL(config.mongodb) + '...');
 		mongoose.connect(getDatabaseURL(config.mongodb));
 
+
+		conn.once('error', function(err) {
+			logger.error(err);
+			logger.error('Could not connect to Mongo database at ' + getDatabaseURL(config.mongodb) + '. Please check the configuration file and that your database is running.');
+			throw err;
+		});
+
 		conn.once('open', function() {
 			logger.debug('Database connection open to ' + getDatabaseURL(config.mongodb));
 
-			var conversationsSchema = new Schema({
-				users: [String],
-				messages: [{
-					from: String,
-					to: String,
-					date: Date,
-					message: String
-				}]
-			}, {
-				collection: 'conversations'
-			});
 			var itemsSchema = new Schema({
 				id: String,
 				owner: String,
@@ -141,13 +137,6 @@ var app = function(user_config) {
 				quicklink: String
 			}, {
 				collection: 'items'
-			});
-			var shopsSchema = new Schema({
-				owner: String,
-				managers: [String],
-				inventory: [String]
-			}, {
-				collection: 'shops'
 			});
 			var transactionsSchema = new Schema({
 				from: String,
@@ -225,7 +214,7 @@ var app = function(user_config) {
 			};
 
 			var saveImage = function(string, id, req, callback) {
-				if (string) {
+				if (string && string.split(':')[1] && string.split(':')[1].split('/')[0] && string.split(':')[1].split('/')[1] && string.split(':')[1].split('/')[1].split(';')[0]) {
 					var filetype = string.split(':')[1].split('/')[0];
 					var extension = string.split(':')[1].split('/')[1].split(';')[0];
 					if (filetype === 'image' && (extension === 'png' || extension === 'jpeg')) {
@@ -240,6 +229,60 @@ var app = function(user_config) {
 			var checkIsAdmin = function(bankid) {
 				var admins = config.admins;
 				if (admins.indexOf(bankid) > -1) {
+					return true;
+				}
+				return false;
+			};
+
+			var money_source_ids = [];
+			var loadMoneySourceIds = function() {
+				var sources = config.money_source;
+
+				for (var i in sources) {
+					UsersModel.findOne({
+						bankid: sources[i]
+					}).lean().exec(function(err, user) {
+						money_source_ids.push(user.id);
+					});
+				}
+			};
+			loadMoneySourceIds();
+
+			var isMoneySource = function(bankid) {
+				var sources = config.money_source;
+
+				if (bankid.indexOf('-') > -1) {
+					sources = money_source_ids;
+				}
+
+				if (sources.indexOf(bankid) > -1) {
+					return true;
+				}
+				return false;
+			};
+
+
+			var money_void_ids = [];
+			var loadMonyVoidIds = function() {
+				var voids = config.money_void;
+				for (var i in voids) {
+					UsersModel.findOne({
+						bankid: voids[i]
+					}).lean().exec(function(err, user) {
+						money_void_ids.push(user.id);
+					});
+				}
+			};
+			loadMonyVoidIds();
+
+			var isMoneyVoid = function(bankid) {
+				var voids = config.money_void;
+
+				if (bankid.indexOf('-') > -1) {
+					voids = money_void_ids;
+				}
+
+				if (voids.indexOf(bankid) > -1) {
 					return true;
 				}
 				return false;
@@ -349,7 +392,7 @@ var app = function(user_config) {
 						username_lower: credentials.username.toLowerCase(),
 						password: credentials.password_hash,
 						bankid: credentials.bankid,
-						balance: 10000 * 100,
+						balance: config.starting_balance * 100,
 						tagline: config.default_tagline,
 						trusted: false,
 						taxExempt: false
@@ -391,16 +434,21 @@ var app = function(user_config) {
 				var memo = args.memo;
 				var generated = args.generated;
 
+
 				var addMoney = function(user, amount, callback) {
-					UsersModel.update({
-						id: user
-					}, {
-						$inc: {
-							balance: amount * 100
-						}
-					}, function() {
+					if (!isMoneySource(user) && !isMoneyVoid(user)) {
+						UsersModel.update({
+							id: user
+						}, {
+							$inc: {
+								balance: amount * 100
+							}
+						}, function() {
+							callback();
+						});
+					} else {
 						callback();
-					});
+					}
 				};
 
 				var getBalance = function(user, callback) {
@@ -420,7 +468,7 @@ var app = function(user_config) {
 						if (err) {
 							return callback(err);
 						} else {
-							if (balance >= amount) {
+							if (balance >= amount || isMoneySource(sender)) {
 								addMoney(sender, -1 * amount, function() {
 									addMoney(recipient, amount, function() {
 										(new TransactionsModel({
@@ -1454,7 +1502,7 @@ var app = function(user_config) {
 						return Math.ceil(parseFloat(amount) * taxRate * 100) / 100;
 					};
 					var getTotal = function(amount) {
-						return getTax(amount) + amount;
+						return getTax(amount) + parseFloat(amount);
 					};
 					if (sender.id === recipient.id) {
 						return res.send({
@@ -1466,13 +1514,17 @@ var app = function(user_config) {
 					var valid_amount = function(amount) {
 						if (amount && amount.toString().indexOf('.') > -1) {
 							if (amount.toString().split('.')[1].length <= 2 && amount > 0) {
+								logger.trace(amount + ' is a valid amount');
 								return true;
 							} else {
+								logger.trace(amount + ' is an invalid amount');
 								return false;
 							}
 						} else if (amount > 0) {
+							logger.trace(amount + ' is a valid amount');
 							return true;
 						} else {
+							logger.trace(amount + ' is an invalid amount');
 							return false
 						}
 
@@ -1490,7 +1542,7 @@ var app = function(user_config) {
 					if (valid_memo(payment.memo)) {
 						if (valid_amount(payment.amount)) {
 							if (payment.amount > 0) {
-								if (sender.balance / 100 >= getTotal(payment.amount)) {
+								if (sender.balance / 100 >= getTotal(payment.amount) || isMoneySource(sender.bankid)) {
 									transferMoney({
 										sender: sender.id,
 										recipient: market.id,
@@ -1565,7 +1617,9 @@ var app = function(user_config) {
 							taxRate: taxRate,
 							isAdmin: checkIsAdmin(req.user.bankid),
 							trusted: req.user.trusted,
-							taxExempt: req.user.taxExempt
+							taxExempt: req.user.taxExempt,
+							isMoneySource: isMoneySource(req.user.bankid),
+							isMoneyVoid: isMoneyVoid(req.user.bankid)
 						};
 					}
 
@@ -1595,6 +1649,12 @@ var app = function(user_config) {
 								break;
 							case 'taxexempt':
 								response.taxExempt = req.user.taxExempt;
+								break;
+							case 'ismoneysource':
+								response.isMoneySource = isMoneySource(req.user.bankid);
+								break;
+							case 'ismoneyvoid':
+								response.isMoneyVoid = isMoneyVoid(req.user.bankid);
 								break;
 						}
 					}
@@ -1892,7 +1952,7 @@ var app = function(user_config) {
 								if (err === null) {
 									return res.sendFile(image_url);
 								} else {
-									logger.warn(displayUser(req.user.username, req.user.bankid) + ' requested image ' + req.query.id + ' but an error occurred, error code: ' + err.code);
+									logger.debug(displayUser(req.user.username, req.user.bankid) + ' requested image ' + req.query.id + ' but an error occurred, error code: ' + err.code);
 									return res.sendFile(__dirname + '/webcontent/img/not-found.jpg');
 								}
 							});
@@ -1967,6 +2027,8 @@ var app = function(user_config) {
 				}
 			}
 		});
+
+
 	};
 
 	logger.trace('Market app instantiated');

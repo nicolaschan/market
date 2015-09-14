@@ -39,7 +39,9 @@ if (cluster.isMaster) {
 	var domain = require('domain');
 	var d = domain.create();
 	d.on('error', function(err) {
+		var logger = getLogger('controller', 'ALL');
 		logger.fatal(err);
+		logger.fatal('A fatal error occurred that is forcing the app to restart...');
 		cluster.worker.disconnect();
 	});
 	d.run(function() {
