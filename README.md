@@ -27,7 +27,7 @@ You'll notice that the configuration file has an option for setting a tax rate o
 ```sh
 $ git clone https://github.com/nicolaschan/market.git
 $ cd market
-$ npm install
+$ sudo npm install
 ```
 
 3) Edit the ```config.json``` to fit your needs, the most important thing is the database IP, port, and name. Configuration instructions are below.
@@ -71,6 +71,11 @@ Configuration values are specified in the ```config.json``` file. Here are the d
   "money_source": ["deposit"], // Bank IDs of accounts that should have infinite money
   "money_void": ["void"], // Bank IDs of accounts that will delete money when they are sent it
   "starting_balance": 0, // The amount of money (in whole dollars) that new users start with
-  "default_tagline": "A market user" // Default tagline for new users (before they change it)
+  "default_tagline": "A market user", // Default tagline for new users (before they change it)
+  "captcha": {
+    "enabled": false, // Enable Google reCAPTCHA in order to create an account
+    "site_key": "site key", // Site key (provided by reCAPTCHA)
+    "secret_key": "secret key" // Secret key (provided by reCAPTCHA)
+  }
 }
 ```
