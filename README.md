@@ -68,6 +68,9 @@ Configuration values are specified in the ```config.json``` file. Here are the d
     "recipient": "tax" // Bank ID of the user to receive tax money
   },
   "admins": ["market"], // Bank IDs of users that should have admin privileges
+  "money_source": ["deposit"], // Bank IDs of accounts that should have infinite money
+  "money_void": ["void"], // Bank IDs of accounts that will delete money when they are sent it
+  "starting_balance": 0, // The amount of money (in whole dollars) that new users start with
   "default_tagline": "A market user" // Default tagline for new users (before they change it)
 }
 ```
