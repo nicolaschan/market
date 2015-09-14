@@ -73,7 +73,7 @@ Configuration values are specified in the ```config.json``` file. Here are the d
   "starting_balance": 0, // The amount of money (in whole dollars) that new users start with
   "default_tagline": "A market user", // Default tagline for new users (before they change it)
   "captcha": {
-    "enabled": false, // Enable Google reCAPTCHA in order to create an account
+    "enabled": false, // Require Google reCAPTCHA in order to create an account
     "site_key": "site key", // Site key (provided by reCAPTCHA)
     "secret_key": "secret key" // Secret key (provided by reCAPTCHA)
   }
