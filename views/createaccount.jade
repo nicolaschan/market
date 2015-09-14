@@ -8,6 +8,7 @@ html
         link(rel='stylesheet', href='static/lib/bootstrap.min.css')
         script(src='static/lib/jquery-1.11.3.min.js')
         script(src='static/lib/bootstrap.min.js')
+        script(src='https://www.google.com/recaptcha/api.js')
         
         title Create Account - Minecraft Market
 
@@ -39,7 +40,7 @@ html
               .row
                 .col-sm-4
                 .col-sm-4
-                  form(action='/createaccount', method='post')
+                  form(action='/api/createaccount', method='post')
                     .form-group
                       label(for='username') Username:
                       input#username.form-control(type='text', name='username', autofocus='', value='#{username}', placeholder='3 to 16 letters, numbers, or _', maxLength=16)
@@ -49,6 +50,9 @@ html
                     .form-group
                       label(for='password') Password:
                       input#password.form-control(type='password', name='password', placeholder="Choose a password")
+                    .form-group(style='display: #{captchadisplay}')
+                      .g-recaptcha(data-sitekey='#{captchakey}')
+                      br
                     .form-group
                       button.btn.btn-default(type='submit') Create Account
                   .col-sm-4

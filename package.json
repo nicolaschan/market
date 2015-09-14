@@ -27,6 +27,7 @@
     "passport-local": "^1.0.0",
     "password-hash-and-salt": "^0.1.2",
     "random-to": "0.0.2",
+    "request": "^2.61.0",
     "shortid": "^2.2.2"
   }
 }

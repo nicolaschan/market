@@ -606,14 +606,19 @@ var app = function(user_config) {
 			}));
 
 			app.get('/createaccount', function(req, res) {
+				var captchadisplay = (config.captcha.enabled) ? 'inline' : 'none';
+				var captchakey = (config.captcha.enabled) ? config.captcha.site_key : '';
+
 				res.render('createaccount.jade', {
 					message: req.flash('message'),
 					username: req.flash('username'),
-					bankid: req.flash('bankid')
+					bankid: req.flash('bankid'),
+					captchadisplay: captchadisplay,
+					captchakey: captchakey
 				});
 			});
 
-			app.post('/createaccount', function(req, res) {
+			app.post('/api/createaccount', function(req, res) {
 				var respond = function(status) {
 					if (status.success) {
 						logger.info(req.ip + ' created a new account: ' + displayUser(req.body.username, req.body.bankid));
@@ -629,17 +634,54 @@ var app = function(user_config) {
 				req.flash('username', req.body.username);
 				req.flash('bankid', req.body.bankid);
 
-				password_hasher(user_info.password).hash(function(err, hash) {
-					if (err) {
-						logger.error(err);
+				var continue_create_account = function() {
+					if (user_info.password) {
+						password_hasher(user_info.password).hash(function(err, hash) {
+							if (err) {
+								logger.error(err);
+							} else {
+								createUser({
+									username: user_info.username.trim(),
+									password_hash: hash,
+									bankid: user_info.bankid.toLowerCase().trim()
+								}, respond);
+							}
+						});
 					} else {
-						createUser({
-							username: user_info.username.trim(),
-							password_hash: hash,
-							bankid: user_info.bankid.toLowerCase().trim()
-						}, respond);
+						respond({
+							success: false,
+							message: 'Not a valid password'
+						});
 					}
-				});
+				};
+
+				if (config.captcha.enabled) {
+					var request = require('request');
+
+					var recaptcha_response = req.body['g-recaptcha-response'];
+
+					logger.trace('Checking recaptcha response: ' + recaptcha_response);
+					request.post('https://www.google.com/recaptcha/api/siteverify', {
+						form: {
+							secret: config.captcha.secret_key,
+							response: recaptcha_response
+						}
+					}, function(err, res, body) {
+						var body = JSON.parse(body);
+						logger.trace('Captcha response received: ' + JSON.stringify(body));
+						if (body.success) {
+							continue_create_account();
+						} else {
+							respond({
+								success: false,
+								message: 'Could not verify Captcha'
+							});
+						}
+					});
+				} else {
+					continue_create_account();
+				}
+
 			});
 
 			app.get('/', function(req, res) {
