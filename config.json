@@ -28,7 +28,7 @@
 	"default_tagline": "A market user",
 	"captcha": {
 		"enabled": true,
-		"site_key": "6LeDzAwTAAAAANcPjWkPezLha3KrN9EfaMRpZ-JJ",
-		"secret_key": "6LeDzAwTAAAAAGqo8RfhfbhhPOKf5ROE256L0Z3M"
+		"site_key": "site key",
+		"secret_key": "secret key"
 	}
 }
