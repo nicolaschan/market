@@ -1,3 +1,4 @@
+doctype html
 html
     head
         style.
@@ -10,7 +11,7 @@ html
         script(src='static/lib/bootstrap.min.js')
         script(src='https://www.google.com/recaptcha/api.js')
         
-        title Create Account - Minecraft Market
+        title Create Account - #{title}
 
         script.
           $(function() {
@@ -24,7 +25,7 @@ html
     body
       .container
         .jumbotron
-          h1 Minecraft Market
+          h1 #{title}
         .ul.nav.nav-tabs(role='tablist')
           li(role='presentation')
             a(href='signin') Sign In
@@ -56,3 +57,6 @@ html
                     .form-group
                       button.btn.btn-default(type='submit') Create Account
                   .col-sm-4
+      .footer
+        .container
+          p.text-muted #{footer}

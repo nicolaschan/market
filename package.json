@@ -1,6 +1,6 @@
 {
   "name": "market",
-  "version": "1.0.0",
+  "version": "v1.0.0-pre1",
   "description": "Online market with virtual currency designed for use as a Minecraft server economy",
   "main": "index.js",
   "repository": {
@@ -8,11 +8,13 @@
     "url": "https://github.com/nicolaschan/market.git"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
-  "author": "",
+  "author": "Nicolas Chan <me@nicolaschan.com>",
   "license": "ISC",
   "dependencies": {
+    "archiver": "^0.15.1",
     "body-parser": "^1.13.3",
     "connect-flash": "^0.1.1",
     "express": "^4.13.1",
@@ -22,6 +24,7 @@
     "line-by-line": "^0.1.4",
     "log4js": "^0.6.26",
     "mongoose": "^4.0.8",
+    "ncp": "^2.0.0",
     "node-uuid": "^1.4.3",
     "passport": "^0.2.2",
     "passport-local": "^1.0.0",

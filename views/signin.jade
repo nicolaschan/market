@@ -1,3 +1,4 @@
+doctype html
 html
     head
         style.
@@ -8,7 +9,7 @@ html
         script(src='static/lib/jquery-1.11.3.min.js')
         script(src='static/lib/bootstrap.min.js')
         
-        title Sign In - Minecraft Market
+        title Sign In - #{title}
 
         script.
           $(function() {
@@ -22,7 +23,7 @@ html
     body
       .container
         .jumbotron
-          h1 Minecraft Market
+          h1 #{title}
         .ul.nav.nav-tabs(role='tablist')
           li.active(role='presentation')
             a(href='signin') Sign In
@@ -48,3 +49,6 @@ html
                      .form-group
                       button.btn.btn-default(type='submit') Sign In
                   .col-sm-4
+      .footer
+        .container
+          p.text-muted #{footer}

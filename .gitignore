@@ -3,3 +3,5 @@ logs/*
 node_modules
 user-content/*
 .DS_Store
+releases/*
+quicklink_id_number.json

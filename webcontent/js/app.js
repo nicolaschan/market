@@ -37,7 +37,7 @@
 	app.config(function($routeProvider) {
 		$routeProvider
 			.when('/', {
-				templateUrl: 'static/templates/market-welcome.html'
+				templateUrl: 'jade/market-welcome.jade'
 			})
 			.when('/buy', {
 				templateUrl: 'static/templates/buy-items.html',
@@ -979,7 +979,7 @@
 	app.directive('mainNavbar', function() {
 		return {
 			restrict: 'E',
-			templateUrl: 'static/templates/main-navbar.html',
+			templateUrl: 'jade/main-navbar.jade',
 			controller: function($http, $window, $location) {
 				var store = this;
 

@@ -593,9 +593,14 @@ var app = function(user_config) {
 
 			app.use('/static', express.static('webcontent'));
 
+			var market_title = config.page_text.title,
+				market_footer = config.page_text.footer;
+
 			app.get('/signin', function(req, res) {
 				res.render('signin.jade', {
-					message: req.flash('error')
+					message: req.flash('error'),
+					footer: market_footer,
+					title: market_title
 				});
 			});
 
@@ -614,7 +619,9 @@ var app = function(user_config) {
 					username: req.flash('username'),
 					bankid: req.flash('bankid'),
 					captchadisplay: captchadisplay,
-					captchakey: captchakey
+					captchakey: captchakey,
+					title: market_title,
+					footer: market_footer
 				});
 			});
 
@@ -685,7 +692,24 @@ var app = function(user_config) {
 			});
 
 			app.get('/', function(req, res) {
-				res.sendFile(__dirname + '/webcontent/index.html');
+				res.render('index.jade', {
+					title: market_title
+				});
+			});
+			app.get('/jade/main-navbar.jade', function(req, res) {
+				if (req.user) {
+					res.render('main-navbar.jade', {
+						title: market_title,
+						bankid: req.user.bankid
+					});
+				} else {
+					res.redirect('/signin');
+				}
+			});
+			app.get('/jade/market-welcome.jade', function(req, res) {
+				res.render('market-welcome.jade', {
+					title: market_title
+				});
 			});
 
 			var isValidTagline = function(tagline) {
@@ -820,23 +844,38 @@ var app = function(user_config) {
 			};
 
 			var getQuicklinkId = function(callback) {
-				fs.readFile('quicklink_id_number.json', 'utf-8', function(err, data) {
-					if (err) {
-						return callback(err);
-					}
+				var quicklink_id_number_file = __dirname + '/quicklink_id_number.json';
+				console.log(quicklink_id_number_file);
 
-					var id_generator = require('./id_generator');
-					var id = id_generator.generate(parseInt(data), {
-						min_length: 3
-					});
-
-					fs.writeFile('quicklink_id_number.json', parseFloat(data) + 1, 'utf-8', function(err) {
+				var nextStep = function() {
+					fs.readFile(quicklink_id_number_file, 'utf-8', function(err, data) {
 						if (err) {
 							return callback(err);
 						}
-						return callback(null, id);
+
+						var id_generator = require('./id_generator');
+						var id = id_generator.generate(parseInt(data), {
+							min_length: 3
+						});
+
+						fs.writeFile(quicklink_id_number_file, parseFloat(data) + 1, 'utf-8', function(err) {
+							if (err) {
+								return callback(err);
+							}
+							return callback(null, id);
+						});
 					});
+				};
+
+				fs.exists(quicklink_id_number_file, function(exists) {
+					if (!exists) {
+						fs.writeFile(quicklink_id_number_file, 0, 'utf-8', nextStep);
+					} else {
+						nextStep();
+					}
 				});
+
+
 			};
 			var market;
 			var setMarket = function() {
@@ -1636,71 +1675,102 @@ var app = function(user_config) {
 			});
 
 			var unknown_user_name = '[ Deleted User ]';
+
+			var field_selector = require('./field-selector');
+
+			app.get('/api/global-stats', function(req, res) {
+				res.set('Content-Type', 'text/json');
+
+				UsersModel.count(function(err, user_count) {
+					ItemsModel.count(function(err, item_count) {
+						ReceiptsModel.count(function(err, receipt_count) {
+							TransactionsModel.count(function(err, transaction_count) {
+								res.send(field_selector.selectWithQueryString(req.query.fields, {
+									users: user_count,
+									items: item_count,
+									receipts: receipt_count,
+									transactions: transaction_count
+								}));
+							});
+						});
+					});
+				});
+			});
+			app.get('/api/user-stats', function(req, res) {
+				res.set('Content-Type', 'text/json');
+
+				if (req.user) {
+					UsersModel.count(function(err, user_count) {
+						ItemsModel.find({
+							forSale: true
+						}).count(function(err, item_count_forSale) {
+							ItemsModel.find({
+								owner: req.user.id
+							}).count(function(err, item_count_user) {
+								ReceiptsModel.find({
+									$or: [{
+										buyer: req.user.id
+									}, {
+										seller: req.user.id
+									}]
+								}).count(function(err, receipt_count) {
+									TransactionsModel.find({
+										$or: [{
+											from: req.user.id
+										}, {
+											to: req.user.id
+										}]
+									}).count(function(err, transaction_count) {
+										res.send(field_selector.selectWithQueryString(req.query.fields, {
+											users: user_count,
+											items_forSale: item_count_forSale,
+											items_user: item_count_user,
+											receipts: receipt_count,
+											transactions: transaction_count
+										}));
+									});
+								});
+							});
+						});
+					});
+				} else {
+					res.send(null);
+				}
+			});
+			app.get('/api/config', function(req, res) {
+				res.set('Content-Type', 'text/json');
+
+				res.send(field_selector.selectWithQueryString(req.query.fields, {
+					title: market_title,
+					footer: market_footer,
+					default_tagline: config.default_tagline,
+					username_length_min: config.username.length.min,
+					username_length_max: config.username.length.max,
+					username_characters: config.username.allowed_characters,
+					captcha_site_key: (config.captcha.enabled) ? config.captcha.site_key : null
+				}));
+			});
 			app.get('/api/user', function(req, res) {
 				res.set('Content-Type', 'text/json');
 
 				if (req.user) {
-					var response = {};
-
 					var taxRate = config.tax.rate;
 					if (req.user.taxExempt) {
 						taxRate = 0;
 					}
 
-					var fields = [];
-					if (req.query.fields) {
-						fields = req.query.fields.toLowerCase().split(',');
-					} else {
-						response = {
-							username: req.user.username,
-							bankid: req.user.bankid,
-							balance: req.user.balance / 100,
-							tagline: req.user.tagline,
-							taxRate: taxRate,
-							isAdmin: checkIsAdmin(req.user.bankid),
-							trusted: req.user.trusted,
-							taxExempt: req.user.taxExempt,
-							isMoneySource: isMoneySource(req.user.bankid),
-							isMoneyVoid: isMoneyVoid(req.user.bankid)
-						};
-					}
-
-
-					for (var i in fields) {
-						switch (fields[i]) {
-							case 'username':
-								response.username = req.user.username;
-								break;
-							case 'bankid':
-								response.bankid = req.user.bankid;
-								break;
-							case 'balance':
-								response.balance = req.user.balance / 100;
-								break;
-							case 'tagline':
-								response.tagline = req.user.tagline;
-								break;
-							case 'taxrate':
-								response.taxRate = taxRate;
-								break;
-							case 'isadmin':
-								response.isAdmin = checkIsAdmin(req.user.bankid);
-								break;
-							case 'trusted':
-								response.trusted = req.user.trusted;
-								break;
-							case 'taxexempt':
-								response.taxExempt = req.user.taxExempt;
-								break;
-							case 'ismoneysource':
-								response.isMoneySource = isMoneySource(req.user.bankid);
-								break;
-							case 'ismoneyvoid':
-								response.isMoneyVoid = isMoneyVoid(req.user.bankid);
-								break;
-						}
-					}
-					res.send(response);
+					res.send(field_selector.selectWithQueryString(req.query.fields, {
+						username: req.user.username,
+						bankid: req.user.bankid,
+						balance: req.user.balance / 100,
+						tagline: req.user.tagline,
+						taxRate: taxRate,
+						isAdmin: checkIsAdmin(req.user.bankid),
+						trusted: req.user.trusted,
+						taxExempt: req.user.taxExempt,
+						isMoneySource: isMoneySource(req.user.bankid),
+						isMoneyVoid: isMoneyVoid(req.user.bankid)
+					}));
 				} else {
 					res.send(null);
 				}
@@ -1994,7 +2064,7 @@ var app = function(user_config) {
 								if (err === null) {
 									return res.sendFile(image_url);
 								} else {
-									logger.debug(displayUser(req.user.username, req.user.bankid) + ' requested image ' + req.query.id + ' but an error occurred, error code: ' + err.code);
+									//logger.debug(displayUser(req.user.username, req.user.bankid) + ' requested image ' + req.query.id + ' but an error occurred, error code: ' + err.code);
 									return res.sendFile(__dirname + '/webcontent/img/not-found.jpg');
 								}
 							});
