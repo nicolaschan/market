@@ -1,5 +1,4 @@
 {
-	"hostname": "localhost:8080",
 	"port": {
 		"http": 8080,
 		"https": 8080
@@ -29,18 +28,7 @@
 	"default_tagline": "A market user",
 	"captcha": {
 		"enabled": true,
-		"site_key": "6LeDzAwTAAAAANcPjWkPezLha3KrN9EfaMRpZ-JJ",
-		"secret_key": "6LeDzAwTAAAAAGqo8RfhfbhhPOKf5ROE256L0Z3M"
-	},
-	"page_text": {
-		"footer": "Market for the nc99 Minecraft Server",
-		"title": "Minecraft Market"
-	},
-	"username": {
-		"length": {
-			"min": 3,
-			"max": 16
-		},
-		"allowed_characters": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+		"site_key": "site key",
+		"secret_key": "secret key"
 	}
 }
