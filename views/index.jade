@@ -1,0 +1,26 @@
+doctype html
+html(ng-app="market")
+  head
+    link(rel="stylesheet", href="static/lib/bootstrap.min.css")
+    link(rel="stylesheet", href="static/css/custom.css")
+    script(src="static/lib/jquery-1.11.3.min.js")
+    script(src="static/lib/angular.min.js")
+    script(src="static/lib/angular-route.min.js")
+    script(src="static/js/app.js")
+    script(src="static/js/pages.js")
+    script(src="static/js/tabs.js")
+    script(src="static/js/elements.js")
+    script(src="static/lib/bootstrap.min.js")
+    link(rel="icon", type="image/png", href="static/img/favicon.png")
+
+    title #{title}
+
+    style.
+      body {
+        padding-top: 70px
+      }
+  body(ng-controller="contentController as contentCtrl")
+    main-navbar
+    #main.container
+      div(ng-view)
+    main-footer

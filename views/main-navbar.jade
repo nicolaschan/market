@@ -1,0 +1,98 @@
+nav.navbar.navbar-default.navbar-fixed-top
+  .container-fluid
+    .navbar-header
+      button.navbar-toggle(type="button", data-toggle="collapse", data-target="#navbar")
+        span.icon-bar
+        span.icon-bar
+        span.icon-bar
+      a.navbar-brand(href="#/")
+        | #{title}
+    #navbar.collapse.navbar-collapse
+      ul.nav.navbar-nav
+        li.dropdown
+          a.dropdown-toggle(data-toggle="dropdown", href="#", onclick="return false;")
+            | Market 
+            span.caret
+          ul.dropdown-menu
+            li(ng-class="{ active:contentCtrl.isCurrentPage('buy') }")
+              a(href="#buy") Buy Items
+            li(ng-class="{ active:contentCtrl.isCurrentPage('items') }")
+              a(href="#items") My Items
+            li(ng-class="{ active:contentCtrl.isCurrentPage('receipts') }")
+              a(href="#receipts") Receipts
+        li.dropdown
+          a.dropdown-toggle(data-toggle="dropdown", href="#", onclick="return false;")
+            | Money 
+            span.caret
+          ul.dropdown-menu
+            li(ng-class="{ active:contentCtrl.isCurrentPage('balance') }")
+              a(href="#balance") Balance
+            li(ng-class="{ active:contentCtrl.isCurrentPage('transactions') }")
+              a(href="#transactions") Transactions
+            li(ng-class="{ active:contentCtrl.isCurrentPage('send') }")
+              a(href="#send") Send Money
+        li(ng-class="{ active:contentCtrl.isCurrentPage('find') }")
+          a(href="#find")
+            | Find Users
+      ul.nav.navbar-nav.navbar-right
+        form.navbar-form.navbar-left(role="quicklink")
+          .form-group
+            input.form-control(type="text", placeholder="@Quicklink", aria-describedby="basic-addon1", ng-keypress="navCtrl.checkQuicklink($event)", ng-model="navCtrl.quicklink")
+        li
+          a(href="#balance")
+            | {{contentCtrl.globalValues.balance | currency}}
+        li.dropdown
+          a.dropdown-toggle(data-toggle="dropdown", href="#", onclick="return false;")
+            span.glyphicon.glyphicon-user
+            |  {{contentCtrl.globalValues.username}} (##{bankid}) 
+            span.caret
+          ul.dropdown-menu
+            li(ng-class="{ active:contentCtrl.isCurrentPage('profile') }")
+              a(href="#profile") My Profile
+            li(ng-class="{ active:contentCtrl.isCurrentPage('account') }")
+              a(href="#account") My Account
+            li(ng-class="{ active:contentCtrl.isCurrentPage('admin/logs') }", ng-show="contentCtrl.globalValues.isAdmin")
+              a(href="#admin/logs") Admin Controls
+            li
+              a(href="/signout")
+                span.glyphicon.glyphicon-log-out
+                |  Sign Out
+#quicklinkModal.modal.fade(role="dialog")
+  .modal-dialog
+    .modal-content
+      .modal-header
+        button.close(type="button", data-dismiss="modal") ×
+        h4.modal-title
+          | Quicklink Action: 
+          span(ng-show="navCtrl.quicklinkData.item") Purchase Item
+          span(ng-show="navCtrl.quicklinkData.payment") Send Money
+      .modal-body
+        span(ng-show="navCtrl.quicklinkData.item")
+          .thumbnail
+            img(ng-src="{{navCtrl.quicklinkData.item.image}}", alt="{{navCtrl.quicklinkData.item.name}}")
+            .caption
+              h3
+                | {{navCtrl.quicklinkData.item.name}}
+                br
+                small by {{navCtrl.quicklinkData.item.owner}}
+              p {{navCtrl.quicklinkData.item.description}}
+        span(ng-show="navCtrl.quicklinkData.payment")
+      .modal-footer
+        button.btn.btn-default(type="button", data-dismiss="modal") Cancel
+        button.btn.btn-success(type="button", data-dismiss="modal", ng-click="navCtrl.modalConfirm()")
+          | Pay
+          span(ng-show="navCtrl.quicklinkData.item") {{navCtrl.getTotal(navCtrl.quicklinkData.item.price) | currency}}
+          span(ng-show="navCtrl.quicklinkData.payment") {{navCtrl.getTotal(navCtrl.quicklinkData.payment.amount)} | currency}
+#quicklinkResponseModal.modal.fade(role="dialog")
+  .modal-dialog
+    .modal-content
+      .modal-header
+        button.close(type="button", data-dismiss="modal") ×
+        h4.modal-title
+          span(ng-show="navCtrl.successMessage") Success!
+          span(ng-show="navCtrl.errorMessage") Error!
+      .modal-body
+        span(ng-show="navCtrl.successMessage") {{navCtrl.successMessage}}
+        span(ng-show="navCtrl.errorMessage") {{navCtrl.errorMessage}}
+      .modal-footer
+        button.btn.btn-default(type="button", data-dismiss="modal") Close
