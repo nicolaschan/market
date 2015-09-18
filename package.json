@@ -29,7 +29,6 @@
     "mongoose": "^4.0.8",
     "node-uuid": "^1.4.3",
     "passport": "^0.2.2",
-    "passport-http": "^0.3.0",
     "passport-local": "^1.0.0",
     "password-hash-and-salt": "^0.1.2",
     "random-to": "0.0.2",
