@@ -30,5 +30,9 @@
 		"enabled": true,
 		"site_key": "site key",
 		"secret_key": "secret key"
+	},
+	"page_text": {
+		"title": "Minecraft Market",
+		"footer": "Market for nc99 Minecraft Servers"
 	}
 }

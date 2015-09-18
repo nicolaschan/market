@@ -1744,9 +1744,6 @@ var app = function(user_config) {
 					title: market_title,
 					footer: market_footer,
 					default_tagline: config.default_tagline,
-					username_length_min: config.username.length.min,
-					username_length_max: config.username.length.max,
-					username_characters: config.username.allowed_characters,
 					captcha_site_key: (config.captcha.enabled) ? config.captcha.site_key : null
 				}));
 			});
