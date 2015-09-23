@@ -127,16 +127,152 @@ start = (ready) ->
 	startWebApp = (callback) ->
 		express = require 'express'
 		app = express()
+		
+		session = require 'express-session'
+		app.use session
+			secret: 'keyboard cat'
+			resave: yes
+			saveUninitialized: no
 
 		passport = require 'passport'
-		BasicStrategy = require 'passport-http'
-			.BasicStrategy
+		LocalStrategy = require 'passport-local'
+			.Strategy
 
-		passport.use new BasicStrategy (username, password, done) ->
-			if username.valueOf() is 'username' and password.valueOf() is 'password'
-				return done null, true
-			else
-				return done null, false
+		passport.use new LocalStrategy {
+			passReqToCallback: yes
+		}, (req, username, password, done) ->
+			username = username.toLowerCase()
+
+			user = {}
+
+			loginFail = ->
+				logger.info username + ' failed to log in'
+				done null, false,
+					message: 'Incorrect username or password'
+
+			getUser = (callback) ->
+				if username.substring 0, 1 is '#'
+					models.users.findOne {
+						bankid: username.substring 1
+					}, (err, found_user) ->
+						if err?
+							logger.error err
+							callback(err)
+						else
+							user = found_user
+							callback()
+				else
+					models.users.findOne {
+						username_lower
+					}, (err, found_user) ->
+						if err?
+							logger.error err
+							loginFail()
+							callback(err)
+						else
+							if found_user
+								user = found_user
+								callback()
+							else
+								loginFail()
+								callback('failed to log in')
+			verifyPassword = (callback) ->
+				passwordHasher password
+					.verifyAgainst user.password, (err, verified) ->
+						if err?
+							logger.error err
+							loginFail()
+							callback(err)
+						else
+							if verified
+								logger.info username + ' successfully logged in'
+								done null, user
+								callback()
+							else
+								loginFail()
+								callback('failed to login')
+
+			async.series [
+				getUser
+				verifyPassword
+			]
+
+		passport.serializeUser (user, done) ->
+			done null, user.id
+
+		passport.deserializeUser (id, done) ->
+			models.users.findOne {
+				id: id
+			}, (err, user) ->
+				done err, user
+
+		app.use passport.initialize()
+		app.use passport.session()
+
+		bodyParser = require 'body-parser'
+		app.use bodyParser.json
+			limit: '5mb'
+		app.use bodyParser.urlencoded
+			limit: '5mb'
+			extended: yes
+
+		app.post '/api/signin', passport.authenticate 'local', 
+			successRedirect: '/#/profile'
+			failureRedirect: '/signin'
+			failureFlash: no
+
+		app.post '/api/createaccount', (req, res) ->
+			respond = (status) ->
+				if status.success
+					logger.info req.ip + ' created a new account'
+					res.send
+						success: yes
+				else
+					res.send
+						success: no
+						message: status.message
+			verifyCaptcha = (callback) ->
+				unless config.captcha.enabled
+					callback()
+				else
+					request = require 'request'
+					recaptcha_response = req.body['g-recaptcha-response']
+
+					request.post 'https://www.google.com/recaptcha/api/siteverify', {
+						form:
+							secret: config.captcha.secret_key
+							response: recaptcha_response
+					}, (err, res, body) ->
+						body = JSON.parse body
+						if body.success
+							callback()
+						else
+							respond
+								success: no
+								message: 'Could not verify captcha'
+							callback 'Could not verify captcha'
+			createAccount = (callback) ->
+				hashed_password = ''
+
+				hashPassword = (callback) ->
+					passwordHasher req.body['password']
+						.hash (err, hash) ->
+							if err?
+								callback(err)
+							else
+								hashed_password = hash
+								callback()
+				addAccount = (callback) ->
+
+
+				async.series [
+					hashPassword
+				], callback
+
+			async.series [
+				verifyCaptcha
+				createAccount
+			]
 
 	async.series [
 		createDirectories
