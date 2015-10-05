@@ -4,7 +4,7 @@
 		"https": 8080
 	},
 	"https": {
-		"enabled": true,
+		"enabled": false,
 		"key": "keys/*.nc99.co.key",
 		"cert": "keys/*.nc99.co.crt"
 	},

@@ -1,0 +1,8 @@
+{
+	"run server": true,
+	"run web app": false,
+	"logger": {
+		"filename": "main.log",
+		"level": "ALL"
+	}
+}

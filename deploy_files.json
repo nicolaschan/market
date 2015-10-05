@@ -5,11 +5,9 @@
 		"id_generator.js",
 		"index.js",
 		"installer.js",
-		"market-web.js",
 		"market.js",
 		"non-ambiguous-characters.json",
 		"package.json",
-		"quicklink_id_number.json",
 		"README.md",
 		"simple-logger.js",
 		"update.js"
