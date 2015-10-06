@@ -3,6 +3,7 @@ config = require './manager-config.json'
 
 getLogger = (name, level) ->
 	log4js = require 'log4js'
+	path = require 'path'
 	log4js.configure
 		appenders: [
 			{
@@ -10,7 +11,7 @@ getLogger = (name, level) ->
 			}
 			{
 				type: 'file'
-				filename: 'logs/' + config.logger.filename
+				filename: 'logs' + path.sep + config.logger.filename
 				category: name
 			}
 		]

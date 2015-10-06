@@ -1,10 +1,10 @@
-async = require 'async'
-
 start = (ready) ->
+	async = require 'async'
 	config = require './server-config.json'
 
 	getLogger = (name, level) ->
 		log4js = require 'log4js'
+		path = require 'path'
 		log4js.configure
 			appenders: [
 				{
@@ -12,7 +12,7 @@ start = (ready) ->
 				}
 				{
 					type: 'file'
-					filename: 'logs/' + config.logger.filename
+					filename: 'logs' + path.sep + config.logger.filename
 					category: name
 				}
 			]
@@ -140,6 +140,7 @@ start = (ready) ->
 		setModels()
 
 		database_url = 'mongodb://' + config.mongodb.host + ':' + config.mongodb.port + '/' + config.mongodb.database
+		logger.debug 'Connecting to database ' + database_url
 		mongoose.connect database_url
 		conn.once 'error', (err) ->
 			callback err

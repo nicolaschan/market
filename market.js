@@ -242,7 +242,7 @@ var app = function(user_config) {
 					UsersModel.findOne({
 						bankid: sources[i]
 					}).lean().exec(function(err, user) {
-						money_source_ids.push(user.id);
+                        money_source_ids.push('user.id');
 					});
 				}
 			};
@@ -269,7 +269,7 @@ var app = function(user_config) {
 					UsersModel.findOne({
 						bankid: voids[i]
 					}).lean().exec(function(err, user) {
-						money_void_ids.push(user.id);
+                        money_void_ids.push('user.id');
 					});
 				}
 			};

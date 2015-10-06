@@ -14,14 +14,37 @@ installDependencies = (callback) ->
 		else
 			log.success 'Dependencies installed'
 			callback()
+createDirectories = (callback) ->
+	fs = require 'fs-extra'
+	async = require 'async'
+
+	required_directories = [
+		'logs'
+		'user-content/item-images'		
+	]
+	createDirectory = (directory, callback) ->
+		fs.ensureDir directory, (err) ->
+			if err?
+				log.error err
+			callback()
+	async.each required_directories, createDirectory, ->
+		log.info 'Created required directories'
+		callback()
 
 setConfig = (callback) ->
 	log.warn '-----------------------------------------------------------------------'
 	log.warn '** IMPORTANT ** Please edit the config.json to use the correct settings'
 	log.warn '-----------------------------------------------------------------------'
 
+next = ->
+	async = require 'async'
+	async.series [
+		createDirectories
+		setConfig
+	]
 
 performInstallation = ->
-	installDependencies setConfig
+	installDependencies next
 
+module.exports.install = performInstallation
 performInstallation()
