@@ -9,7 +9,7 @@
         "cert": "keys/*.nc99.co.crt"
     },
     "mongodb": {
-        "host": "localhost",
+        "host": "10.0.1.100",
         "port": 27017,
         "database": "market"
     },
@@ -32,5 +32,6 @@
     "tax": {
         "rate": 0.05,
         "recipient": "tax"
-    }
+    },
+    "default_tagline": "A market user"
 }

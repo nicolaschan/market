@@ -43,6 +43,25 @@ start = (ready) ->
 			return no
 		displayUser: (username, bankid) ->
 			username + ' (#' + bankid + ')'
+		isValidUsernameFormat: (username) ->
+			min_length = 3
+			max_length = 16
+			unless /^[a-zA-Z0-9_]*$/g.test(username)
+				return no
+			unless username.length >= min_length and username.length <= max_length
+				return no
+			return yes
+		isValidBankIdFormat: (bankid) ->
+			min_length = 3
+			max_length = 16
+			unless /^[a-zA-Z0-9_]*$/g.test(bankid)
+				return no
+			unless bankid.length >= min_length and bankid.length <= max_length
+				return no
+			return yes
+		calculateTax: (amount) -> Math.ceil(parseFloat(amount) * config.tax.rate * 100) / 100
+		calculateTotal: (amount) -> amount + calculateTax amount
+
 
 	createDirectories = (callback) ->
 		fs = require 'fs-extra'
@@ -141,6 +160,8 @@ start = (ready) ->
 
 		database_url = 'mongodb://' + config.mongodb.host + ':' + config.mongodb.port + '/' + config.mongodb.database
 		logger.debug 'Connecting to database ' + database_url
+	
+		
 		mongoose.connect database_url
 		conn.once 'error', (err) ->
 			callback err
@@ -148,6 +169,101 @@ start = (ready) ->
 		conn.once 'open', ->
 			logger.info 'Successfully connected to database'
 			callback()
+	addUtilities = (callback) ->
+		utilities.idToUser = (id, callback) ->
+			models.users.findOne {
+				id: id
+			}
+				.lean()
+				.exec (err, user) ->
+					callback user
+		utilities.nameToUser = (name, callback) ->
+			if ((name.charAt 0) is '#')
+				# specified by bankid
+				models.users.findOne {
+					bankid: name.toLowerCase().substring 1
+				}
+					.exec (err, user) ->
+						callback user
+			else
+				# specified by username
+				models.users.findOne {
+					username_lower: name.toLowerCase()
+				}
+					.exec (err, user) ->
+						callback user
+		utilities.isUsernameAvailable = (username, callback) ->
+			models.users.findOne {
+				username: username
+			}
+				.lean()
+				.exec (err, user) ->
+					if user?
+						callback no
+					else
+						callback yes
+		utilities.hasEnoughFunds = (user, amount) ->
+			if ((user.balance / 100) >= amount)
+				return yes
+			return no
+		utilities.sendMoney = (from, to, amount, memo, callback) ->
+			getFrom = (callback) ->
+				utilities.nameToUser from, (user) ->
+					from = user
+					callback()
+			getTo = (callback) ->
+				utilities.nameToUser to, (user) ->
+					to = user
+					callback()
+			transferMoney = (callback) ->
+				if (hasEnoughFunds from, calculateTotal(amount))
+					adjustBalance = (user, change, callback) ->
+						user.balance = user.balance + change
+						user.save callback
+					makePayment = (from, to, amount, memo, generated, callback) ->
+						async.parallel [
+							(callback) ->
+								adjustBalance from, -1 * amount, callback
+							(callback) ->
+								adjustBalance to, amount, callback
+							(callback) ->
+								transaction = new models.transactions {
+									from: from._id
+									to: to._id
+									amount: amount
+									memo: memo
+									date: Date.now()
+									generated: generated
+								}
+								transaction.save callback
+						]
+					async.parallel [
+						
+					]
+
+				else
+					callback 'Not enough funds'
+
+			async.series [
+				getFrom
+				getTo
+				transferMoney
+			], callback
+
+		addTaxRecipient = (callback) ->
+			models.users.findOne {
+				bankid: config.tax.recipient
+			}
+				.exec (err, user) ->
+					if user?
+						utilities.tax_recipient = user
+					else
+						logger.warn 'Tax recipient user could not be found'
+					callback()
+
+		async.parallel [
+			addTaxRecipient
+		], callback
 	startWebApp = (callback) ->
 		express = require 'express'
 		app = express()
@@ -225,11 +341,11 @@ start = (ready) ->
 				]
 
 			passport.serializeUser (user, done) ->
-				done null, user.id
+				done null, user._id
 
 			passport.deserializeUser (id, done) ->
 				models.users.findOne {
-					id: id
+					_id: id
 				}, (err, user) ->
 					done err, user
 
@@ -266,17 +382,15 @@ start = (ready) ->
 			app.post '/api/signin', passport.authenticate 'local', 
 				successRedirect: '/#/profile'
 				failureRedirect: '/signin'
-				failureFlash: no
+				failureFlash: yes
 			app.post '/api/createaccount', (req, res) ->
 				respond = (status) ->
 					if status.success
 						logger.info req.ip + ' created a new account'
-						res.send
-							success: yes
+						res.redirect '/signin'
 					else
-						res.send
-							success: no
-							message: status.message
+						req.flash 'message', status.message
+						res.redirect '/createaccount'
 				verifyCaptcha = (callback) ->
 					unless config.captcha.enabled
 						callback()
@@ -298,32 +412,198 @@ start = (ready) ->
 									message: 'Could not verify captcha'
 								callback 'Could not verify captcha'
 				createAccount = (callback) ->
-					hashed_password = ''
-
+					logger.trace 'Creating an account...'
 					hashPassword = (callback) ->
 						passwordHasher req.body['password']
 							.hash (err, hash) ->
 								if err?
 									callback(err)
 								else
-									hashed_password = hash
-									callback()
-					addAccount = (callback) ->
+									logger.trace 'Hashed password'
+									callback(null, hash)
+					createUser = (credentials, callback) ->
+						verifyCredentials = (credentials, callback) ->
+							logger.trace 'Verifying credentials...'
+							bankid = credentials.bankid
+							username = credentials.username
 
+							unless (utilities.isValidBankIdFormat bankid)
+								return callback 'Invalid Bank ID'
 
-					async.series [
+							unless (utilities.isValidUsernameFormat username)
+								return callback 'Invalid username'
+
+							logger.trace 'Credentials meet requirements, now checking if available...'
+
+							models.users.findOne {
+								$or: [{
+									username_lower: username.toLowerCase()
+								}, {
+									bankid: bankid
+								}]
+							}
+								.lean()
+								.count (err, count) ->
+									logger.trace 'Count obtained and is ' + count
+									if count > 0
+										logger.trace 'Username or Bank ID is taken'
+										return callback 'Username or Bank ID is taken'
+									else
+										logger.trace 'Credentials verified'
+										callback()
+						saveUser = (credentials, callback) ->
+							logger.trace 'Saving user to database...'
+							user = new models.users {
+								username: credentials.username
+								username_lower: credentials.username.toLowerCase()
+								password: credentials.password_hash
+								bankid: credentials.bankid
+								balance: 0
+								tagline: config.default_tagline
+								trusted: no
+								taxExempt: no
+							}
+
+							user.save (err) ->
+								if err?
+									logger.error 'Error saving to database: ' + err
+									return callback err
+								else
+									logger.trace 'User saved to database'
+									return callback()
+
+						verifyCredentials credentials, (err) ->
+							if err?
+								return respond
+									success: no
+									message: err
+							else
+								saveUser credentials, (err) ->
+									if err?
+										return respond
+											success: no
+											message: err
+									else
+										logger.debug 'Account created for ' + credentials.username
+										callback()
+
+					async.waterfall [
 						hashPassword
+						(hash, callback) ->
+							createUser {
+								username: req.body.username.trim()
+								password_hash: hash
+								bankid: req.body.bankid.toLowerCase().trim()
+							}, callback
 					], callback
 
 				async.series [
 					verifyCaptcha
 					createAccount
-				]
-			app.post '/api/items', (req, res) ->
+				], ->
+					respond
+						success: yes
+			app.post '/api/send', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 
 				if req.user?
-					limit = if req.query.limit? then parseInt(req.qurey.limit) else null
+					res.send
+						success: no
+						message: 'Not yet implemented'
+				else
+					res.send
+						success: no
+						message: 'Not signed in'
+			app.post '/api/account/username', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				if req.user?
+					unless (utilities.isValidUsernameFormat req.body.username)
+						return res.send
+							success: no
+							message: 'Invalid username'
+					utilities.isUsernameAvailable req.body.username, (result) ->
+						if result
+							models.users.findOne {
+								_id: req.user._id
+							}
+								.exec (err, user) ->
+									if user?
+										user.username = req.body.username
+										user.save ->
+											res.send
+												success: yes
+									else
+										res.send
+											success: no
+											message: 'Could not find user in database'
+						else
+							res.send
+								success: no
+								message: 'Username not available'
+
+				else
+					res.send
+						success: no
+						message: 'Not signed in'
+			app.post '/api/account/password', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				if req.user?
+					models.users.findOne {
+						_id: req.user._id
+					}
+						.exec (err, user) ->
+							if user?
+								passwordHasher req.body.password
+									.hash (err, hash) ->
+										if err?
+											res.send
+												success: no
+												message: 'Error hashing password'
+										else
+											logger.trace 'Hashed password'
+											user.password = hash
+											user.save ->
+												res.send
+													success: yes
+							else
+								res.send
+									success: no
+									message: 'Could not find user in database'
+				else
+					res.send
+						success: no
+						message: 'Not signed in'
+			app.get '/api/buy', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				limit = if req.query.limit? then parseInt(req.query.limit) else null
+				skip = if req.query.skip? then parseInt(req.query.skip) else 0
+
+				models.items.find {
+					forSale: yes
+				}
+					.skip skip
+					.limit limit
+					.lean()
+					.exec (err, data) ->
+						if data?
+							convertIdToUsername = (item, callback) ->
+								utilities.idToUser item.owner, (user) ->
+									if user?
+										item.owner = user.username
+									callback()
+
+							async.each data, convertIdToUsername, ->
+								res.send data
+						else
+							res.send []
+			app.get '/api/items', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				if req.user?
+					limit = if req.query.limit? then parseInt(req.query.limit) else null
 					skip = if req.query.skip? then parseInt(req.query.skip) else 0
 
 					models.items.find {
@@ -347,7 +627,8 @@ start = (ready) ->
 					if req.user.taxExempt
 						taxRate = 0
 
-					res.send fieldSelector.selectWithQueryString(req.query.fields, 
+					res.send fieldSelector.selectWithQueryString(req.query.fields,
+						id: req.user._id
 						username: req.user.username
 						bankid: req.user.bankid
 						balance: req.user.balance / 100
@@ -363,7 +644,7 @@ start = (ready) ->
 					res.send null
 			app.get '/api/users', (req, res) ->
 				res.set 'Content-Type', 'text/json'
-				limit = if req.query.limit? then parseInt(req.qurey.limit) else null
+				limit = if req.query.limit? then parseInt(req.query.limit) else null
 				skip = if req.query.skip? then parseInt(req.query.skip) else 0
 
 				models.users.find {}
@@ -371,13 +652,103 @@ start = (ready) ->
 						balance: -1
 					.skip skip
 					.limit limit
-					.select 'id username bankid tagline balance trusted taxExempt'
+					.select '_id username bankid tagline balance trusted taxExempt'
 					.lean()
 					.exec (err, data) ->
 						if data?
 							for user in data
 								user.balance = user.balance / 100
 							res.send data
+						else
+							res.send []
+			app.get '/api/receipts', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				unless req.user?
+					return res.send null
+				limit = if req.query.limit? then parseInt(req.query.limit) else null
+				skip = if req.query.skip? then parseInt(req.query.skip) else 0
+
+				models.receipts.find {
+					$or: [{
+						buyer: req.user.id
+					}, {
+						seller: req.user.id
+					}]
+				}
+					.sort
+						date: -1
+					.skip skip
+					.limit limit
+					.lean()
+					.exec (err, data) ->
+						if data?
+							convertIdToUsername = (receipt, callback) ->
+								convertDate = (callback) ->
+									receipt.date = new Date(receipt.date).toString()
+									callback()
+								convertBuyer = (callback) ->
+									utilities.idToUser receipt.buyer, (user) ->
+										receipt.buyer = 
+											username: user.username
+											bankid: user.bankid
+										callback()
+								convertSeller = (callback) ->
+									utilities.idToUser receipt.seller, (user) ->
+										receipt.seller = 
+											username: user.username
+											bankid: user.bankid
+										callback()
+								async.parallel [
+									convertDate
+									convertBuyer
+									convertSeller
+								], callback
+							async.each data, convertIdToUsername, ->
+								res.send data
+						else
+							res.send []
+			app.get '/api/transactions', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+				
+				unless req.user?
+					return res.send null
+				limit = if req.query.limit? then parseInt(req.query.limit) else null
+				skip = if req.query.skip? then parseInt(req.query.skip) else 0
+
+				models.transactions.find {
+					$or: [{
+						to: req.user.id
+					}, {
+						from: req.user.id
+					}]
+				}
+					.sort
+						date: -1
+					.skip skip
+					.limit limit
+					.lean()
+					.exec (err, data) ->
+						if data?
+							convertIdToUsername = (transaction, callback) ->
+								convertTo = (callback) ->
+									utilities.idToUser transaction.to, (user) ->
+										transaction.to = 
+											username: user.username
+											bankid: user.bankid
+										callback()
+								convertFrom = (callback) ->
+									utilities.idToUser transaction.from, (user) ->
+										transaction.from =
+											username: user.username
+											bankid: user.bankid
+										callback()
+								async.parallel [
+									convertTo
+									convertFrom
+								], callback
+							async.each data, convertIdToUsername, ->
+								res.send data
 						else
 							res.send []
 			app.get '/signin', (req, res) ->
@@ -479,6 +850,7 @@ start = (ready) ->
 	async.series [
 		createDirectories
 		connectToDatabase
+		addUtilities
 		startWebApp
 		(callback) ->
 			logger.info 'Server startup complete'

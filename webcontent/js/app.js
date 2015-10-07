@@ -818,11 +818,8 @@
 
 						var min_password_length = 1;
 						if (passwordTemp.length >= min_password_length) {
-							$http.post('/api', {
-								page: 'account-password',
-								data: {
-									password: passwordTemp
-								}
+							$http.post('/api/account/password', {
+								password: passwordTemp
 							}).then(function(response) {
 								if (response.data.success) {
 									store.errorMessage = '';
@@ -853,11 +850,8 @@
 						store.username = '';
 
 						if (usernameTemp.length >= 0) {
-							$http.post('/api', {
-								page: 'account-username',
-								data: {
-									username: usernameTemp
-								}
+							$http.post('/api/account/username', {
+								username: usernameTemp
 							}).then(function(response) {
 								if (response.data.success) {
 									store.errorMessage = '';
