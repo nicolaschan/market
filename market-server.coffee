@@ -59,8 +59,25 @@ start = (ready) ->
 			unless bankid.length >= min_length and bankid.length <= max_length
 				return no
 			return yes
+		isValidTaglineFormat: (tagline) ->
+			min_length = 0
+			max_length = 32
+			unless tagline.length >= min_length and tagline.length <= max_length
+				return no
+			return yes
+		isValidItemData: (item) ->
+			if (item.name?.length > 32)
+				return no
+			if (item.description?.length > 140)
+				return no
+			if (item.instructions?.length > 140)
+				return no
+			return yes
 		calculateTax: (amount) -> Math.ceil(parseFloat(amount) * config.tax.rate * 100) / 100
-		calculateTotal: (amount) -> amount + calculateTax amount
+		calculateTotal: (amount) -> amount + utilities.calculateTax amount
+		getShortId: ->
+			shortid = require 'shortid'
+			return shortid.generate()
 
 
 	createDirectories = (callback) ->
@@ -93,7 +110,7 @@ start = (ready) ->
 				name: String
 				price: Number
 				quantity: Number
-				instructions: Number
+				instructions: String
 				image: String
 				forSale: Boolean
 				quicklink: String
@@ -140,7 +157,7 @@ start = (ready) ->
 				seller: String
 				recipient: String
 				date: Date
-				items:
+				item:
 					name: String
 					quantity: Number
 					description: String
@@ -172,9 +189,8 @@ start = (ready) ->
 	addUtilities = (callback) ->
 		utilities.idToUser = (id, callback) ->
 			models.users.findOne {
-				id: id
+				_id: id
 			}
-				.lean()
 				.exec (err, user) ->
 					callback user
 		utilities.nameToUser = (name, callback) ->
@@ -206,7 +222,7 @@ start = (ready) ->
 			if ((user.balance / 100) >= amount)
 				return yes
 			return no
-		utilities.sendMoney = (from, to, amount, memo, callback) ->
+		utilities.sendMoney = (from, to, amount, memo, generated, callback) ->
 			getFrom = (callback) ->
 				utilities.nameToUser from, (user) ->
 					from = user
@@ -214,40 +230,150 @@ start = (ready) ->
 			getTo = (callback) ->
 				utilities.nameToUser to, (user) ->
 					to = user
-					callback()
+					if to?
+						callback()
+					else
+						callback 'Could not find recipient'
 			transferMoney = (callback) ->
-				if (hasEnoughFunds from, calculateTotal(amount))
-					adjustBalance = (user, change, callback) ->
-						user.balance = user.balance + change
-						user.save callback
-					makePayment = (from, to, amount, memo, generated, callback) ->
-						async.parallel [
-							(callback) ->
-								adjustBalance from, -1 * amount, callback
-							(callback) ->
-								adjustBalance to, amount, callback
-							(callback) ->
-								transaction = new models.transactions {
-									from: from._id
-									to: to._id
-									amount: amount
-									memo: memo
-									date: Date.now()
-									generated: generated
-								}
-								transaction.save callback
-						]
-					async.parallel [
-						
-					]
+				unless ((utilities.hasEnoughFunds from, utilities.calculateTotal(amount)) or (from.taxExempt and (utilities.hasEnoughFunds from, amount)))
+					return callback 'Not enough funds'
 
-				else
-					callback 'Not enough funds'
+				adjustBalance = (user, change, callback) ->
+					user.balance = user.balance + (change * 100)
+					user.save callback
+				makePayment = (from, to, amount, memo, generated, callback) ->
+					async.parallel [
+						(callback) ->
+							adjustBalance from, -1 * amount, callback
+						(callback) ->
+							adjustBalance to, amount, callback
+						(callback) ->
+							transaction = new models.transactions {
+								from: from._id
+								to: to._id
+								amount: amount
+								memo: memo
+								date: Date.now()
+								generated: generated
+							}
+							transaction.save callback
+					], callback
+				async.parallel [
+					(callback) ->
+						makePayment from, to, amount, memo, generated, callback
+					(callback) ->
+						unless from.taxExempt
+							makePayment from, utilities.tax_recipient, utilities.calculateTax(amount), memo, yes, callback
+						else
+							callback()
+				], callback
 
 			async.series [
 				getFrom
 				getTo
 				transferMoney
+			], callback
+		utilities.buyItem = (item, quantity, buyer, callback) ->
+			convertItem = (callback) ->
+				models.items.findOne {
+					_id: item
+					forSale: yes
+					quantity: {
+						$gt: 0
+					}
+				}
+					.exec (err, data) ->
+						unless data?
+							return callback 'Could not find item'
+						item = data
+						callback()
+			convertUser = (callback) ->
+				utilities.idToUser buyer, (user) ->
+					unless user?
+						return callback 'Could not find user'
+					buyer = user
+					callback()
+			itemOwner = null
+			getItemOwner = (callback) ->
+				utilities.idToUser item.owner, (user) ->
+					unless user?
+						return callback 'Could not find user'
+					itemOwner = user
+					callback()
+			makePayment = (callback) ->
+				utilities.sendMoney '#' + buyer.bankid, '#' + itemOwner.bankid, item.price * quantity, 'Purchase of ' + item.name, yes, (err) ->
+					if err?
+						callback err
+					else
+						callback()
+			decreaseItemQuantity = (callback) ->
+				item.quantity = item.quantity - quantity
+				item.save callback
+			addReceipt = (callback) ->
+				receipt = new models.receipts {
+					proof: utilities.getShortId()
+					buyer: buyer._id
+					seller: itemOwner._id
+					date: Date.now()
+					item: {
+						name: item.name
+						quantity: quantity
+						description: if item.description? then item.description else ''
+						instructions: if item.instructions? then item.instructions else ''
+					}
+				}
+				receipt.save callback
+
+			async.series [
+				convertItem
+				convertUser
+				getItemOwner
+				makePayment
+				decreaseItemQuantity
+				addReceipt
+			], callback
+		utilities.addItem = (owner, item, callback) ->
+			quicklink = null
+			image = null
+			item_document = null
+
+			generateQuicklink = (callback) ->
+				quicklink_id_number_file = __dirname + '/quicklink_id_number.json'
+				quicklink = 'temp'
+				callback()
+			getRandomImage = (callback) ->
+				prefix = '/static/img/items/'
+				images = ['black', 'blue', 'cyan', 'gray', 'green', 'lightgray', 'magenta', 'pink', 'purple', 'red', 'yellow']
+				suffix = '.jpg'
+
+				random = require 'random-to'
+				image = prefix + images[random.from0upto(images.length)] + suffix
+				callback()
+			saveItem = (callback) ->
+				item_document = new models.items {
+					owner: owner
+					name: item.name
+					description: item.description
+					price: item.price
+					quantity: item.quantity
+					instructions: item.instructions
+					image: image
+					forSale: item.forSale
+					quicklink: quicklink
+				}
+				item_document.save callback
+			saveQuicklink = (callback) ->
+				quicklink_document = new models.quicklinks {
+					link: quicklink
+					item: item_document._id
+				}
+				quicklink_document.save callback
+
+			async.series [
+				generateQuicklink
+				getRandomImage
+				saveItem
+				saveQuicklink
 			], callback
 
 		addTaxRecipient = (callback) ->
@@ -379,6 +505,10 @@ start = (ready) ->
 					footer: config.page_text.footer
 					captcha_site_key: config.captcha.site_key
 				)
+			app.get '/api/math/calculate-tax', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+				tax = utilities.calculateTax(parseFloat(req.query.amount))
+				res.send tax.toString()
 			app.post '/api/signin', passport.authenticate 'local', 
 				successRedirect: '/#/profile'
 				failureRedirect: '/signin'
@@ -507,13 +637,34 @@ start = (ready) ->
 				res.set 'Content-Type', 'text/json'
 
 				if req.user?
-					res.send
-						success: no
-						message: 'Not yet implemented'
+					utilities.sendMoney '#' + req.user.bankid, req.body.to, req.body.amount, req.body.memo, no, (err) ->
+						if err?
+							res.send
+								success: no
+								message: err
+						else
+							res.send
+								success: yes
 				else
 					res.send
 						success: no
 						message: 'Not signed in'
+			app.post '/api/buy', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				unless req.user?
+					return res.send
+						success: no
+						message: 'Not signed in'
+
+				utilities.buyItem req.body.item, req.body.quantity, req.user._id, (err) ->
+					if err?
+						res.send
+							success: no
+							message: err
+					else
+						res.send
+							success: yes
 			app.post '/api/account/username', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 
@@ -575,6 +726,96 @@ start = (ready) ->
 					res.send
 						success: no
 						message: 'Not signed in'
+			app.post '/api/account/tagline', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				unless req.user?
+					return res.send
+						success: no
+						message: 'Not signed in'
+
+				unless utilities.isValidTaglineFormat req.body.tagline
+					return res.send
+						success: no
+						message: 'Invalid tagline'
+
+				utilities.idToUser req.user._id, (user) ->
+					user.tagline = req.body.tagline
+					user.save ->
+						return res.send
+							success: yes
+			app.post '/api/item/add', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				unless req.user?
+					return res.send
+						success: no
+						message: 'Not signed in'
+
+				unless (utilities.isValidItemData req.body.item)
+					return res.send
+						success: no
+						message: 'Invalid field(s)'
+
+				utilities.addItem req.user._id, req.body.item, (err) ->
+					if err?
+						res.send
+							success: no
+							message: err
+					else
+						res.send
+							success: yes
+			app.post '/api/item/edit', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				unless req.user?
+					return res.send
+						success: no
+						message: 'Not signed in'
+
+				unless (utilities.isValidItemData req.body.item)
+					return res.send
+						success: no
+						message: 'Invalid field(s)'
+
+				models.items.findOne {
+					_id: req.body.item._id
+					owner: req.user._id
+				}
+					.exec (err, item) ->
+						unless item?
+							return res.send
+								success: no
+								message: 'Could not find item'
+						item.name = req.body.item.name
+						item.description = req.body.item.description
+						item.price = req.body.item.price
+						item.quantity = req.body.item.quantity
+						item.instructions = req.body.item.instructions
+						item.forSale = req.body.item.forSale
+						item.save ->
+							res.send
+								success: yes
+			app.post '/api/item/delete', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				unless req.user?
+					return res.send
+						success: no
+						message: 'Not signed in'
+
+				models.items.findOne {
+					_id: req.body.item._id
+					owner: req.user._id
+				}
+					.exec (err, item) ->
+						unless item?
+							return res.send
+								success: no
+								message: 'Could not find item'
+						item.remove ->
+							res.send
+								success: yes
 			app.get '/api/buy', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 
@@ -593,6 +834,8 @@ start = (ready) ->
 								utilities.idToUser item.owner, (user) ->
 									if user?
 										item.owner = user.username
+									else
+										item.owner = config.user_not_found
 									callback()
 
 							async.each data, convertIdToUsername, ->
@@ -607,7 +850,7 @@ start = (ready) ->
 					skip = if req.query.skip? then parseInt(req.query.skip) else 0
 
 					models.items.find {
-						owner: req.user.id
+						owner: req.user._id
 					}
 						.skip skip
 						.limit limit
@@ -671,9 +914,9 @@ start = (ready) ->
 
 				models.receipts.find {
 					$or: [{
-						buyer: req.user.id
+						buyer: req.user._id
 					}, {
-						seller: req.user.id
+						seller: req.user._id
 					}]
 				}
 					.sort
@@ -689,15 +932,25 @@ start = (ready) ->
 									callback()
 								convertBuyer = (callback) ->
 									utilities.idToUser receipt.buyer, (user) ->
-										receipt.buyer = 
-											username: user.username
-											bankid: user.bankid
+										if user?
+											receipt.buyer = 
+												username: user.username
+												bankid: user.bankid
+										else
+											receipt.buyer = 
+												username: config.user_not_found
+												bankid: config.user_not_found
 										callback()
 								convertSeller = (callback) ->
 									utilities.idToUser receipt.seller, (user) ->
-										receipt.seller = 
-											username: user.username
-											bankid: user.bankid
+										if user?
+											receipt.seller = 
+												username: user.username
+												bankid: user.bankid
+										else
+											receipt.seller = 
+												username: config.user_not_found
+												bankid: config.user_not_found
 										callback()
 								async.parallel [
 									convertDate
@@ -718,9 +971,9 @@ start = (ready) ->
 
 				models.transactions.find {
 					$or: [{
-						to: req.user.id
+						to: req.user._id
 					}, {
-						from: req.user.id
+						from: req.user._id
 					}]
 				}
 					.sort
@@ -751,6 +1004,42 @@ start = (ready) ->
 								res.send data
 						else
 							res.send []
+			app.get '/api/quicklink', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				getItemByQuicklink = (link, callback) ->
+					models.quicklinks.findOne {
+						link: req.query.link
+					}
+						.lean()
+						.exec (err, quicklink) ->
+							callback null, quicklink.item
+				convertToItem = (item_id, callback) ->
+					models.items.findOne {
+						_id: item_id
+						forSale: yes
+					}
+						.lean()
+						.exec (err, item) ->
+							callback null, item
+				convertIdToUsername = (item, callback) ->
+					unless item?
+						return callback null, item
+					utilities.idToUser item.owner, (user) ->
+						if user?
+							item.owner = user.username
+						else
+							item.owner = config.user_not_found
+						callback null, item
+
+				async.waterfall [
+					(callback) ->
+						getItemByQuicklink req.query.link, callback
+					convertToItem
+					convertIdToUsername
+				], (err, result) ->
+					res.send
+						item: result
 			app.get '/signin', (req, res) ->
 				unless req.user?
 					res.render 'signin.jade',

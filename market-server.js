@@ -80,11 +80,38 @@
         }
         return true;
       },
+      isValidTaglineFormat: function(tagline) {
+        var max_length, min_length;
+        min_length = 0;
+        max_length = 32;
+        if (!(tagline.length >= min_length && tagline.length <= max_length)) {
+          return false;
+        }
+        return true;
+      },
+      isValidItemData: function(item) {
+        var ref, ref1, ref2;
+        if (((ref = item.name) != null ? ref.length : void 0) > 32) {
+          return false;
+        }
+        if (((ref1 = item.description) != null ? ref1.length : void 0) > 140) {
+          return false;
+        }
+        if (((ref2 = item.instructions) != null ? ref2.length : void 0) > 140) {
+          return false;
+        }
+        return true;
+      },
       calculateTax: function(amount) {
         return Math.ceil(parseFloat(amount) * config.tax.rate * 100) / 100;
       },
       calculateTotal: function(amount) {
-        return amount + calculateTax(amount);
+        return amount + utilities.calculateTax(amount);
+      },
+      getShortId: function() {
+        var shortid;
+        shortid = require('shortid');
+        return shortid.generate();
       }
     };
     createDirectories = function(callback) {
@@ -117,7 +144,7 @@
           name: String,
           price: Number,
           quantity: Number,
-          instructions: Number,
+          instructions: String,
           image: String,
           forSale: Boolean,
           quicklink: String
@@ -165,7 +192,7 @@
           seller: String,
           recipient: String,
           date: Date,
-          items: {
+          item: {
             name: String,
             quantity: Number,
             description: String,
@@ -200,8 +227,8 @@
       var addTaxRecipient;
       utilities.idToUser = function(id, callback) {
         return models.users.findOne({
-          id: id
-        }).lean().exec(function(err, user) {
+          _id: id
+        }).exec(function(err, user) {
           return callback(user);
         });
       };
@@ -237,7 +264,7 @@
         }
         return false;
       };
-      utilities.sendMoney = function(from, to, amount, memo, callback) {
+      utilities.sendMoney = function(from, to, amount, memo, generated, callback) {
         var getFrom, getTo, transferMoney;
         getFrom = function(callback) {
           return utilities.nameToUser(from, function(user) {
@@ -248,42 +275,166 @@
         getTo = function(callback) {
           return utilities.nameToUser(to, function(user) {
             to = user;
-            return callback();
+            if (to != null) {
+              return callback();
+            } else {
+              return callback('Could not find recipient');
+            }
           });
         };
         transferMoney = function(callback) {
           var adjustBalance, makePayment;
-          if (hasEnoughFunds(from, calculateTotal(amount))) {
-            adjustBalance = function(user, change, callback) {
-              user.balance = user.balance + change;
-              return user.save(callback);
-            };
-            makePayment = function(from, to, amount, memo, generated, callback) {
-              return async.parallel([
-                function(callback) {
-                  return adjustBalance(from, -1 * amount, callback);
-                }, function(callback) {
-                  return adjustBalance(to, amount, callback);
-                }, function(callback) {
-                  var transaction;
-                  transaction = new models.transactions({
-                    from: from._id,
-                    to: to._id,
-                    amount: amount,
-                    memo: memo,
-                    date: Date.now(),
-                    generated: generated
-                  });
-                  return transaction.save(callback);
-                }
-              ]);
-            };
-            return async.parallel([]);
-          } else {
+          if (!((utilities.hasEnoughFunds(from, utilities.calculateTotal(amount))) || (from.taxExempt && (utilities.hasEnoughFunds(from, amount))))) {
             return callback('Not enough funds');
           }
+          adjustBalance = function(user, change, callback) {
+            user.balance = user.balance + (change * 100);
+            return user.save(callback);
+          };
+          makePayment = function(from, to, amount, memo, generated, callback) {
+            return async.parallel([
+              function(callback) {
+                return adjustBalance(from, -1 * amount, callback);
+              }, function(callback) {
+                return adjustBalance(to, amount, callback);
+              }, function(callback) {
+                var transaction;
+                transaction = new models.transactions({
+                  from: from._id,
+                  to: to._id,
+                  amount: amount,
+                  memo: memo,
+                  date: Date.now(),
+                  generated: generated
+                });
+                return transaction.save(callback);
+              }
+            ], callback);
+          };
+          return async.parallel([
+            function(callback) {
+              return makePayment(from, to, amount, memo, generated, callback);
+            }, function(callback) {
+              if (!from.taxExempt) {
+                return makePayment(from, utilities.tax_recipient, utilities.calculateTax(amount), memo, true, callback);
+              } else {
+                return callback();
+              }
+            }
+          ], callback);
         };
         return async.series([getFrom, getTo, transferMoney], callback);
+      };
+      utilities.buyItem = function(item, quantity, buyer, callback) {
+        var addReceipt, convertItem, convertUser, decreaseItemQuantity, getItemOwner, itemOwner, makePayment;
+        convertItem = function(callback) {
+          return models.items.findOne({
+            _id: item,
+            forSale: true,
+            quantity: {
+              $gt: 0
+            }
+          }).exec(function(err, data) {
+            if (data == null) {
+              return callback('Could not find item');
+            }
+            item = data;
+            return callback();
+          });
+        };
+        convertUser = function(callback) {
+          return utilities.idToUser(buyer, function(user) {
+            if (user == null) {
+              return callback('Could not find user');
+            }
+            buyer = user;
+            return callback();
+          });
+        };
+        itemOwner = null;
+        getItemOwner = function(callback) {
+          return utilities.idToUser(item.owner, function(user) {
+            if (user == null) {
+              return callback('Could not find user');
+            }
+            itemOwner = user;
+            return callback();
+          });
+        };
+        makePayment = function(callback) {
+          return utilities.sendMoney('#' + buyer.bankid, '#' + itemOwner.bankid, item.price * quantity, 'Purchase of ' + item.name, true, function(err) {
+            if (err != null) {
+              return callback(err);
+            } else {
+              return callback();
+            }
+          });
+        };
+        decreaseItemQuantity = function(callback) {
+          item.quantity = item.quantity - quantity;
+          return item.save(callback);
+        };
+        addReceipt = function(callback) {
+          var receipt;
+          receipt = new models.receipts({
+            proof: utilities.getShortId(),
+            buyer: buyer._id,
+            seller: itemOwner._id,
+            date: Date.now(),
+            item: {
+              name: item.name,
+              quantity: quantity,
+              description: item.description != null ? item.description : '',
+              instructions: item.instructions != null ? item.instructions : ''
+            }
+          });
+          return receipt.save(callback);
+        };
+        return async.series([convertItem, convertUser, getItemOwner, makePayment, decreaseItemQuantity, addReceipt], callback);
+      };
+      utilities.addItem = function(owner, item, callback) {
+        var generateQuicklink, getRandomImage, image, item_document, quicklink, saveItem, saveQuicklink;
+        quicklink = null;
+        image = null;
+        item_document = null;
+        generateQuicklink = function(callback) {
+          var quicklink_id_number_file;
+          quicklink_id_number_file = __dirname + '/quicklink_id_number.json';
+          quicklink = 'temp';
+          return callback();
+        };
+        getRandomImage = function(callback) {
+          var images, prefix, random, suffix;
+          prefix = '/static/img/items/';
+          images = ['black', 'blue', 'cyan', 'gray', 'green', 'lightgray', 'magenta', 'pink', 'purple', 'red', 'yellow'];
+          suffix = '.jpg';
+          random = require('random-to');
+          image = prefix + images[random.from0upto(images.length)] + suffix;
+          return callback();
+        };
+        saveItem = function(callback) {
+          item_document = new models.items({
+            owner: owner,
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            quantity: item.quantity,
+            instructions: item.instructions,
+            image: image,
+            forSale: item.forSale,
+            quicklink: quicklink
+          });
+          return item_document.save(callback);
+        };
+        saveQuicklink = function(callback) {
+          var quicklink_document;
+          quicklink_document = new models.quicklinks({
+            link: quicklink,
+            item: item_document._id
+          });
+          return quicklink_document.save(callback);
+        };
+        return async.series([generateQuicklink, getRandomImage, saveItem, saveQuicklink], callback);
       };
       addTaxRecipient = function(callback) {
         return models.users.findOne({
@@ -416,6 +567,12 @@
             footer: config.page_text.footer,
             captcha_site_key: config.captcha.site_key
           }));
+        });
+        app.get('/api/math/calculate-tax', function(req, res) {
+          var tax;
+          res.set('Content-Type', 'text/json');
+          tax = utilities.calculateTax(parseFloat(req.query.amount));
+          return res.send(tax.toString());
         });
         app.post('/api/signin', passport.authenticate('local', {
           successRedirect: '/#/profile',
@@ -568,9 +725,17 @@
         app.post('/api/send', function(req, res) {
           res.set('Content-Type', 'text/json');
           if (req.user != null) {
-            return res.send({
-              success: false,
-              message: 'Not yet implemented'
+            return utilities.sendMoney('#' + req.user.bankid, req.body.to, req.body.amount, req.body.memo, false, function(err) {
+              if (err != null) {
+                return res.send({
+                  success: false,
+                  message: err
+                });
+              } else {
+                return res.send({
+                  success: true
+                });
+              }
             });
           } else {
             return res.send({
@@ -578,6 +743,27 @@
               message: 'Not signed in'
             });
           }
+        });
+        app.post('/api/buy', function(req, res) {
+          res.set('Content-Type', 'text/json');
+          if (req.user == null) {
+            return res.send({
+              success: false,
+              message: 'Not signed in'
+            });
+          }
+          return utilities.buyItem(req.body.item, req.body.quantity, req.user._id, function(err) {
+            if (err != null) {
+              return res.send({
+                success: false,
+                message: err
+              });
+            } else {
+              return res.send({
+                success: true
+              });
+            }
+          });
         });
         app.post('/api/account/username', function(req, res) {
           res.set('Content-Type', 'text/json');
@@ -658,6 +844,118 @@
             });
           }
         });
+        app.post('/api/account/tagline', function(req, res) {
+          res.set('Content-Type', 'text/json');
+          if (req.user == null) {
+            return res.send({
+              success: false,
+              message: 'Not signed in'
+            });
+          }
+          if (!utilities.isValidTaglineFormat(req.body.tagline)) {
+            return res.send({
+              success: false,
+              message: 'Invalid tagline'
+            });
+          }
+          return utilities.idToUser(req.user._id, function(user) {
+            user.tagline = req.body.tagline;
+            return user.save(function() {
+              return res.send({
+                success: true
+              });
+            });
+          });
+        });
+        app.post('/api/item/add', function(req, res) {
+          res.set('Content-Type', 'text/json');
+          if (req.user == null) {
+            return res.send({
+              success: false,
+              message: 'Not signed in'
+            });
+          }
+          if (!(utilities.isValidItemData(req.body.item))) {
+            return res.send({
+              success: false,
+              message: 'Invalid field(s)'
+            });
+          }
+          return utilities.addItem(req.user._id, req.body.item, function(err) {
+            if (err != null) {
+              return res.send({
+                success: false,
+                message: err
+              });
+            } else {
+              return res.send({
+                success: true
+              });
+            }
+          });
+        });
+        app.post('/api/item/edit', function(req, res) {
+          res.set('Content-Type', 'text/json');
+          if (req.user == null) {
+            return res.send({
+              success: false,
+              message: 'Not signed in'
+            });
+          }
+          if (!(utilities.isValidItemData(req.body.item))) {
+            return res.send({
+              success: false,
+              message: 'Invalid field(s)'
+            });
+          }
+          return models.items.findOne({
+            _id: req.body.item._id,
+            owner: req.user._id
+          }).exec(function(err, item) {
+            if (item == null) {
+              return res.send({
+                success: false,
+                message: 'Could not find item'
+              });
+            }
+            item.name = req.body.item.name;
+            item.description = req.body.item.description;
+            item.price = req.body.item.price;
+            item.quantity = req.body.item.quantity;
+            item.instructions = req.body.item.instructions;
+            item.forSale = req.body.item.forSale;
+            return item.save(function() {
+              return res.send({
+                success: true
+              });
+            });
+          });
+        });
+        app.post('/api/item/delete', function(req, res) {
+          res.set('Content-Type', 'text/json');
+          if (req.user == null) {
+            return res.send({
+              success: false,
+              message: 'Not signed in'
+            });
+          }
+          return models.items.findOne({
+            _id: req.body.item._id,
+            owner: req.user._id
+          }).exec(function(err, item) {
+            if (item == null) {
+              return res.send({
+                success: false,
+                message: 'Could not find item'
+              });
+            }
+            return item.remove(function() {
+              return res.send({
+                success: true
+              });
+            });
+          });
+        });
         app.get('/api/buy', function(req, res) {
           var limit, skip;
           res.set('Content-Type', 'text/json');
@@ -672,6 +970,8 @@
                 return utilities.idToUser(item.owner, function(user) {
                   if (user != null) {
                     item.owner = user.username;
+                  } else {
+                    item.owner = config.user_not_found;
                   }
                   return callback();
                 });
@@ -691,7 +991,7 @@
             limit = req.query.limit != null ? parseInt(req.query.limit) : null;
             skip = req.query.skip != null ? parseInt(req.query.skip) : 0;
             return models.items.find({
-              owner: req.user.id
+              owner: req.user._id
             }).skip(skip).limit(limit).lean().exec(function(err, data) {
               if (data != null) {
                 return res.send(data);
@@ -759,9 +1059,9 @@
           return models.receipts.find({
             $or: [
               {
-                buyer: req.user.id
+                buyer: req.user._id
               }, {
-                seller: req.user.id
+                seller: req.user._id
               }
             ]
           }).sort({
@@ -777,19 +1077,33 @@
                 };
                 convertBuyer = function(callback) {
                   return utilities.idToUser(receipt.buyer, function(user) {
-                    receipt.buyer = {
-                      username: user.username,
-                      bankid: user.bankid
-                    };
+                    if (user != null) {
+                      receipt.buyer = {
+                        username: user.username,
+                        bankid: user.bankid
+                      };
+                    } else {
+                      receipt.buyer = {
+                        username: config.user_not_found,
+                        bankid: config.user_not_found
+                      };
+                    }
                     return callback();
                   });
                 };
                 convertSeller = function(callback) {
                   return utilities.idToUser(receipt.seller, function(user) {
-                    receipt.seller = {
-                      username: user.username,
-                      bankid: user.bankid
-                    };
+                    if (user != null) {
+                      receipt.seller = {
+                        username: user.username,
+                        bankid: user.bankid
+                      };
+                    } else {
+                      receipt.seller = {
+                        username: config.user_not_found,
+                        bankid: config.user_not_found
+                      };
+                    }
                     return callback();
                   });
                 };
@@ -814,9 +1128,9 @@
           return models.transactions.find({
             $or: [
               {
-                to: req.user.id
+                to: req.user._id
               }, {
-                from: req.user.id
+                from: req.user._id
               }
             ]
           }).sort({
@@ -852,6 +1166,47 @@
             } else {
               return res.send([]);
             }
+          });
+        });
+        app.get('/api/quicklink', function(req, res) {
+          var convertIdToUsername, convertToItem, getItemByQuicklink;
+          res.set('Content-Type', 'text/json');
+          getItemByQuicklink = function(link, callback) {
+            return models.quicklinks.findOne({
+              link: req.query.link
+            }).lean().exec(function(err, quicklink) {
+              return callback(null, quicklink.item);
+            });
+          };
+          convertToItem = function(item_id, callback) {
+            return models.items.findOne({
+              _id: item_id,
+              forSale: true
+            }).lean().exec(function(err, item) {
+              return callback(null, item);
+            });
+          };
+          convertIdToUsername = function(item, callback) {
+            if (item == null) {
+              return callback(null, item);
+            }
+            return utilities.idToUser(item.owner, function(user) {
+              if (user != null) {
+                item.owner = user.username;
+              } else {
+                item.owner = config.user_not_found;
+              }
+              return callback(null, item);
+            });
+          };
+          return async.waterfall([
+            function(callback) {
+              return getItemByQuicklink(req.query.link, callback);
+            }, convertToItem, convertIdToUsername
+          ], function(err, result) {
+            return res.send({
+              item: result
+            });
           });
         });
         app.get('/signin', function(req, res) {

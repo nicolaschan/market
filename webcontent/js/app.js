@@ -103,12 +103,9 @@
 					};
 
 					this.buy = function(item) {
-						$http.post('/api', {
-							page: 'buy',
-							data: {
-								item: item,
-								quantity: store.quantity
-							}
+						$http.post('/api/buy', {
+							item: item,
+							quantity: store.quantity
 						}).then(function(response) {
 							if (response.data.success) {
 								store.errorMessage = '';
@@ -192,15 +189,12 @@
 							forSale: false
 						};
 
-						$http.post('/api', {
-							page: 'items',
-							data: {
-								item: listingItemTemp
-							}
+						$http.post('/api/item/add', {
+							item: listingItemTemp
 						}).then(function(response) {
 							if (response.data.success) {
 								store.errorMessage = '';
-								store.successMessage = 'Created item';
+								store.successMessage = 'Added item';
 								updaters.items();
 							} else {
 								store.successMessage = '';
@@ -213,10 +207,9 @@
 						});
 					};
 					this.deleteItem = function(itemId) {
-						$http.post('/api', {
-							page: 'items-delete',
-							data: {
-								itemId: itemId
+						$http.post('/api/item/delete', {
+							item: {
+								_id: itemId
 							}
 						}).then(function(response) {
 							if (response.data.success) {
@@ -235,11 +228,8 @@
 
 					this.editingItem = {};
 					this.editItem = function() {
-						$http.post('/api', {
-							page: 'items-edit',
-							data: {
-								item: this.editingItem
-							}
+						$http.post('/api/item/edit', {
+							item: this.editingItem
 						}).then(function(response) {
 							if (response.data.success) {
 								store.errorMessage = '';
@@ -782,11 +772,8 @@
 					this.errorMessage = '';
 					this.successMessage = '';
 					this.updateProfile = function() {
-						$http.post('/api', {
-							page: 'profile',
-							data: {
-								tagline: this.Tagline
-							}
+						$http.post('/api/account/tagline', {
+							tagline: this.Tagline
 						}).then(function(response) {
 							if (response.data.success) {
 								store.errorMessage = '';
@@ -1015,19 +1002,15 @@
 					this.quicklink = '';
 
 					if (quicklinkTemp.length > 1) {
-						$http.post('/api', {
-							page: 'quicklink',
-							data: {
-								link: quicklinkTemp
-							}
-						}).then(function(response) {
-							if (response.data.success) {
-								store.quicklinkData.item = response.data.quicklink.item;
-								store.quicklinkData.payment = response.data.quicklink.payment;
+						$http.get('/api/quicklink?link=' + quicklinkTemp).then(function(response) {
+							if (response) {
+								console.log(response);
+								store.quicklinkData.item = response.data.item;
+								store.quicklinkData.payment = response.data.payment;
 								$('#quicklinkModal').modal('show');
 							} else {
 								store.successMessage = '';
-								store.errorMessage = response.data.message;
+								store.errorMessage = response.message;
 								$('#quicklinkResponseModal').modal('show');
 							}
 						}, function(response) {
