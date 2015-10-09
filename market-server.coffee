@@ -210,7 +210,7 @@ start = (ready) ->
 						callback user
 		utilities.isUsernameAvailable = (username, callback) ->
 			models.users.findOne {
-				username: username
+				username_lower: username.toLowerCase()
 			}
 				.lean()
 				.exec (err, user) ->
@@ -339,8 +339,20 @@ start = (ready) ->
 
 			generateQuicklink = (callback) ->
 				quicklink_id_number_file = __dirname + '/quicklink_id_number.json'
-				quicklink = 'temp'
-				callback()
+				confirmExists = (callback) ->
+					fs = require 'fs'
+					fs.exists quicklink_id_number_file, (exists) ->
+						unless exists
+							fs.writeFile quicklink_id_number_file, 0, 'utf-8', callback
+						else
+							callback()
+				readFile = (callback) ->
+
+
+				async.series [
+					confirmExists
+					readFile
+				], callback
 			getRandomImage = (callback) ->
 				prefix = '/static/img/items/'
 				images = ['black', 'blue', 'cyan', 'gray', 'green', 'lightgray', 'magenta', 'pink', 'purple', 'red', 'yellow']
@@ -375,7 +387,38 @@ start = (ready) ->
 				saveItem
 				saveQuicklink
 			], callback
+		utilities.verifyPassword = (user, password, callback) ->
+			passwordHasher = require 'password-hash-and-salt'
 
+			passwordHasher password
+				.verifyAgainst user.password, (err, verified) ->
+					if verified
+						callback yes
+					else
+						callback no
+		utilities.deleteUser = (user, callback) ->
+			convertUser = (callback) ->
+				utilities.idToUser user, (data) ->
+					if data?
+						user = data
+						callback()
+					else
+						callback 'Could not find user'
+			deleteItems = (callback) ->
+				models.items.find {
+					owner: user._id
+				}
+					.remove (err) ->
+						callback err
+			deleteUser = (callback) ->
+				user.remove (err) ->
+					callback err
+
+			async.series [
+				convertUser
+				deleteItems
+				deleteUser
+			], callback
 		addTaxRecipient = (callback) ->
 			models.users.findOne {
 				bankid: config.tax.recipient
@@ -420,31 +463,13 @@ start = (ready) ->
 						message: 'Incorrect username or password'
 
 				getUser = (callback) ->
-					if username.substring 0, 1 is '#'
-						models.users.findOne {
-							bankid: username.substring 1
-						}, (err, found_user) ->
-							if err?
-								logger.error err
-								callback(err)
-							else
-								user = found_user
-								callback()
-					else
-						models.users.findOne {
-							username_lower: username.toLowerCase()
-						}, (err, found_user) ->
-							if err?
-								logger.error err
-								loginFail()
-								callback(err)
-							else
-								if found_user
-									user = found_user
-									callback()
-								else
-									loginFail()
-									callback('failed to log in')
+					utilities.nameToUser username, (found_user) ->
+						if found_user?
+							user = found_user
+							callback()
+						else
+							loginFail()
+							callback 'failed to log in'
 				verifyPassword = (callback) ->
 					passwordHasher password
 						.verifyAgainst user.password, (err, verified) ->
@@ -457,9 +482,6 @@ start = (ready) ->
 									logger.info username + ' successfully logged in'
 									done null, user
 									callback()
-								else
-									loginFail()
-									callback('failed to login')
 
 				async.series [
 					getUser
@@ -505,6 +527,46 @@ start = (ready) ->
 					footer: config.page_text.footer
 					captcha_site_key: config.captcha.site_key
 				)
+			app.post '/api/admin/edit-user', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				unless (utilities.checkIsAdmin req.user.bankid)
+					return res.send
+						success: no
+						message: 'Insufficient privileges'
+
+				utilities.idToUser req.body.user._id, (user) ->
+					unless user?
+						return res.send
+							success: no
+							message: 'Could not find user'
+					if req.body.user.username?
+						user.username = req.body.user.username
+						user.username_lower = req.body.user.username.toLowerCase()
+					if req.body.user.balance?
+						user.balance = req.body.user.balance
+					if req.body.user.tagline?
+						user.tagline = req.body.user.tagline
+					if req.body.user.bankid?
+						user.bankid = req.body.user.bankid
+					if req.body.user.password?
+						passwordHasher password
+							.hash (err, hash) ->
+								unless err?
+									user.password = hash
+					if req.body.user.trusted?
+						user.trusted = req.body.user.trusted
+					if req.body.user.taxExempt?
+						user.taxExempt = req.body.user.taxExempt
+
+					user.save (err) ->
+						if err?
+							res.send
+								success: no
+								message: err
+						else
+							res.send
+								success: yes
 			app.get '/api/math/calculate-tax', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 				tax = utilities.calculateTax(parseFloat(req.query.amount))
@@ -674,13 +736,14 @@ start = (ready) ->
 							success: no
 							message: 'Invalid username'
 					utilities.isUsernameAvailable req.body.username, (result) ->
-						if result
+						if (result or (req.body.username.toLowerCase() is req.user.username_lower))
 							models.users.findOne {
 								_id: req.user._id
 							}
 								.exec (err, user) ->
 									if user?
 										user.username = req.body.username
+										user.username_lower = req.body.username.toLowerCase()
 										user.save ->
 											res.send
 												success: yes
@@ -816,6 +879,26 @@ start = (ready) ->
 						item.remove ->
 							res.send
 								success: yes
+			app.post '/api/delete-user', (req, res) ->
+				res.set 'Content-Type', 'text/json'
+
+				unless req.user?
+					return res.send
+						success: no
+						message: 'Not signed in'
+				unless ((req.body.id is req.user._id) or (utilities.checkIsAdmin req.user.bankid))
+					return res.send
+						success: no
+						message: 'Insufficient privileges'
+
+				utilities.deleteUser req.body.id, (err) ->
+					if err?
+						res.send
+							success: no
+							message: err
+					else
+						res.send
+							success: yes
 			app.get '/api/buy', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 
