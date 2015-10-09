@@ -242,7 +242,7 @@ var app = function(user_config) {
 					UsersModel.findOne({
 						bankid: sources[i]
 					}).lean().exec(function(err, user) {
-                        money_source_ids.push('user.id');
+						money_source_ids.push('user.id');
 					});
 				}
 			};
@@ -269,7 +269,7 @@ var app = function(user_config) {
 					UsersModel.findOne({
 						bankid: voids[i]
 					}).lean().exec(function(err, user) {
-                        money_void_ids.push('user.id');
+						money_void_ids.push('user.id');
 					});
 				}
 			};
@@ -843,7 +843,7 @@ var app = function(user_config) {
 				}
 			};
 
-            var getQuicklinkId = function(callback) {
+			var getQuicklinkId = function(callback) {
 				var quicklink_id_number_file = __dirname + '/quicklink_id_number.json';
 				console.log(quicklink_id_number_file);
 
@@ -2021,6 +2021,7 @@ var app = function(user_config) {
 
 							lr.on('end', function() {
 								res.set('Content-Type', 'text/json');
+								lines.reverse()
 								res.send(lines.slice(0, number_of_lines));
 							});
 						} else {

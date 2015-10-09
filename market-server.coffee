@@ -337,30 +337,43 @@ start = (ready) ->
 			image = null
 			item_document = null
 
+			getRandomImage = ->
+					prefix = '/static/img/items/'
+					images = ['black', 'blue', 'cyan', 'gray', 'green', 'lightgray', 'magenta', 'pink', 'purple', 'red', 'yellow']
+					suffix = '.jpg'
+
+					random = require 'random-to'
+					return prefix + images[random.from0upto(images.length)] + suffix
+
 			generateQuicklink = (callback) ->
 				quicklink_id_number_file = __dirname + '/quicklink_id_number.json'
+				fs = require 'fs'
 				confirmExists = (callback) ->
-					fs = require 'fs'
 					fs.exists quicklink_id_number_file, (exists) ->
 						unless exists
 							fs.writeFile quicklink_id_number_file, 0, 'utf-8', callback
 						else
 							callback()
 				readFile = (callback) ->
+					fs.readFile quicklink_id_number_file, 'utf-8', (err, data) ->
+						if err?
+							return callback err
 
+						id_generator = require './id_generator'
+						id = id_generator.generate(parseInt(data), {
+							min_length: 3
+						})
+
+						fs.writeFile quicklink_id_number_file, parseInt(data) + 1, 'utf-8', (err) ->
+							if err?
+								return callback err
+							quicklink = id
+							callback()
 
 				async.series [
 					confirmExists
 					readFile
 				], callback
-			getRandomImage = (callback) ->
-				prefix = '/static/img/items/'
-				images = ['black', 'blue', 'cyan', 'gray', 'green', 'lightgray', 'magenta', 'pink', 'purple', 'red', 'yellow']
-				suffix = '.jpg'
-
-				random = require 'random-to'
-				image = prefix + images[random.from0upto(images.length)] + suffix
-				callback()
 			saveItem = (callback) ->
 				item_document = new models.items {
 					owner: owner
@@ -369,11 +382,21 @@ start = (ready) ->
 					price: item.price
 					quantity: item.quantity
 					instructions: item.instructions
-					image: image
+					image: getRandomImage()
 					forSale: item.forSale
 					quicklink: quicklink
 				}
 				item_document.save callback
+			setImageURL = (callback) ->
+				if ((item.image?) and (item.image isnt ''))
+					utilities.saveImage item.image, item_document._id, (err) ->
+						unless err?
+							item_document.image = 'user-content/item-images?id=' + item_document._id
+							item_document.save callback
+						else
+							callback err
+				else
+					callback()
 			saveQuicklink = (callback) ->
 				quicklink_document = new models.quicklinks {
 					link: quicklink
@@ -383,10 +406,17 @@ start = (ready) ->
 
 			async.series [
 				generateQuicklink
-				getRandomImage
 				saveItem
+				setImageURL
 				saveQuicklink
 			], callback
+		utilities.saveImage = (image, name, callback) ->
+			fs = require 'fs'
+			filetype = image.split(':')[1].split('/')[0]
+			extension = image.split(':')[1].split('/')[1].split(';')[0]
+			if ((filetype is 'image') and (extension is 'png' or extension is 'jpeg'))
+				fs.writeFile __dirname + '/user-content/item-images/' + name, image.split(',')[1], 'base64', (err) ->
+					callback err
 		utilities.verifyPassword = (user, password, callback) ->
 			passwordHasher = require 'password-hash-and-salt'
 
@@ -481,7 +511,9 @@ start = (ready) ->
 								if verified
 									logger.info username + ' successfully logged in'
 									done null, user
-									callback()
+								else
+									loginFail()
+								callback()
 
 				async.series [
 					getUser
@@ -520,6 +552,8 @@ start = (ready) ->
 
 			app.use '/static', express.static 'webcontent'
 
+			app.get '/user-content/item-images', (req, res) ->
+				res.sendFile __dirname + '/user-content/item-images/' + req.query.id
 			app.get '/api/config', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 				res.send fieldSelector.selectWithQueryString(req.query.fields,
@@ -856,9 +890,20 @@ start = (ready) ->
 						item.quantity = req.body.item.quantity
 						item.instructions = req.body.item.instructions
 						item.forSale = req.body.item.forSale
-						item.save ->
-							res.send
-								success: yes
+						saveImage = (callback) ->
+							if (req.body.item.image? and (req.body.item.image isnt ''))
+								utilities.saveImage req.body.item.image, item._id, (err) ->
+									callback()
+							else
+								callback()
+						saveItem = (callback) ->
+							item.save ->
+								res.send
+									success: yes
+						async.series [
+							saveImage
+							saveItem
+						]
 			app.post '/api/item/delete', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 
@@ -899,6 +944,25 @@ start = (ready) ->
 					else
 						res.send
 							success: yes
+			app.get '/api/admin/logs', (req, res) ->
+				if (req.user? and (utilities.checkIsAdmin req.user.bankid))
+					unless req.query.lines?
+						res.sendFile __dirname + '/logs/' + config.logger.filename
+					else
+						lines = []
+						LineByLineReader = require 'line-by-line'
+						lr = new LineByLineReader 'logs/' + config.logger.filename
+
+						lr.on 'line', (line) ->
+							lines.push line
+
+						lr.on 'end', ->
+							res.set 'Content-Type', 'text/json'
+							lines.reverse()
+							res.send lines.slice 0, parseInt(req.query.lines)
+				else
+					res.set 'Content-Type', 'text/json'
+					res.send null
 			app.get '/api/buy', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 
@@ -1090,13 +1154,19 @@ start = (ready) ->
 			app.get '/api/quicklink', (req, res) ->
 				res.set 'Content-Type', 'text/json'
 
+				if ((req.query.link.charAt 0) is '@')
+					req.query.link = req.query.link.substring 1
+
 				getItemByQuicklink = (link, callback) ->
 					models.quicklinks.findOne {
 						link: req.query.link
 					}
 						.lean()
 						.exec (err, quicklink) ->
-							callback null, quicklink.item
+							if quicklink?
+								callback null, quicklink.item
+							else
+								callback 'Cannot find quicklink'
 				convertToItem = (item_id, callback) ->
 					models.items.findOne {
 						_id: item_id
@@ -1104,7 +1174,10 @@ start = (ready) ->
 					}
 						.lean()
 						.exec (err, item) ->
-							callback null, item
+							if item?
+								callback null, item
+							else
+								callback 'Cannot find item'
 				convertIdToUsername = (item, callback) ->
 					unless item?
 						return callback null, item
