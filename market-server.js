@@ -478,8 +478,11 @@
         return async.series([generateQuicklink, saveItem, setImageURL, saveQuicklink], callback);
       };
       utilities.saveImage = function(image, name, callback) {
-        var extension, filetype, fs;
+        var extension, filetype, fs, ref, ref1;
         fs = require('fs');
+        if ((image != null ? (ref = image.split(':')[1]) != null ? (ref1 = ref.split('/')[1]) != null ? ref1.split(';')[0] : void 0 : void 0 : void 0) == null) {
+          return callback('Could not save image');
+        }
         filetype = image.split(':')[1].split('/')[0];
         extension = image.split(':')[1].split('/')[1].split(';')[0];
         if ((filetype === 'image') && (extension === 'png' || extension === 'jpeg')) {
@@ -1054,6 +1057,9 @@
             saveImage = function(callback) {
               if ((req.body.item.image != null) && (req.body.item.image !== '')) {
                 return utilities.saveImage(req.body.item.image, item._id, function(err) {
+                  if (err == null) {
+                    item.image = '/user-content/item-images/?id=' + item._id;
+                  }
                   return callback();
                 });
               } else {
