@@ -5,7 +5,7 @@
   start = function(ready) {
     var addUtilities, async, config, conn, connectToDatabase, createDirectories, getLogger, logger, models, startWebApp, utilities;
     async = require('async');
-    config = require('./server-config.json');
+    config = require('./config.json');
     getLogger = function(name, level) {
       var log4js, logger, path;
       log4js = require('log4js');

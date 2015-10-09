@@ -1,6 +1,6 @@
 start = (ready) ->
   async = require 'async'
-  config = require './server-config.json'
+  config = require './config.json'
 
   getLogger = (name, level) ->
     log4js = require 'log4js'

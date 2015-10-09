@@ -17,15 +17,6 @@
         "filename": "main.log",
         "level": "ALL"
     },
-    "tax": {
-        "rate": 0.05,
-        "recipient": "tax"
-    },
-    "admins": ["market"],
-    "money_source": ["deposit"],
-    "money_void": ["void"],
-    "starting_balance": 0,
-    "default_tagline": "A market user",
     "captcha": {
         "enabled": false,
         "site_key": "site key",
@@ -34,5 +25,14 @@
     "page_text": {
         "title": "Minecraft Market",
         "footer": "Market for nc99 Minecraft Servers"
-    }
+    },
+    "admins": ["market"],
+    "money_source": ["deposit"],
+    "money_void": ["void"],
+    "tax": {
+        "rate": 0.05,
+        "recipient": "tax"
+    },
+    "default_tagline": "A market user",
+    "user_not_found": "[ ? ]"
 }
