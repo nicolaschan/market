@@ -38,36 +38,13 @@ installNewVersion = (callback) ->
 			log.info 'Creating temp directory...'
 			fs.mkdirSync temp_directory
 		callback()
-	downloadZip = (callback) ->
-		zip_file = fs.createWriteStream zip_file_path
-
-		log.info 'Downloading new version...'
-		archive_url = 'https://codeload.github.com/nicolaschan/market/zip/v1.0.0-pre1'
-		request = https.get archive_url, (res) ->
-			res.pipe zip_file
-
-			res.on 'end', ->
-				log.success 'Download complete'
-				callback()
-	extractZip = (callback) ->
-		log.info 'Extracting downloaded zip file...'
-		unzip = require 'unzip'
-		zip_readstream = fs.createReadStream zip_file_path
-
-		zip_readstream
-			.pipe unzip.Extract
-				path: temp_directory
-			.on 'finish', ->
-				log.success 'Extract complete'
-				callback()
-	deleteZip = (callback) ->
-		log.info 'Deleting zip file...'
-		fs.unlink zip_file_path, (err) ->
+	download = (callback) ->
+		exec 'git clone https://github.com/nicolaschan/market.git ' + temp_directory, (err, stdout, stderr) ->
 			if err?
-				log.error err
+				log.erorr 'An error occurred trying to download the latest version, make sure you have git installed'
 			else
-				log.success 'Zip file deleted'
-			callback()
+				log.success 'New version downloaded'
+				callback()
 	moveOldConfig = (callback) ->
 		log.info 'Moving config.json...'
 
@@ -82,18 +59,20 @@ installNewVersion = (callback) ->
 				log.warn 'You will need to update the new config.json!'
 			callback()
 	replaceFiles = (callback) ->
-		new_market_directory = temp_directory + path.sep + 'market-' + '1.0.0-pre1'
+		new_market_directory = temp_directory
 
 		replaceFile = (filename, callback) ->
 			done = 0
 			file_path = new_market_directory + path.sep + filename
 			deleteFile = (callback) ->
 				fs.remove __dirname + path.sep + filename, (err) ->
+					log.debug __dirname + path.sep + filename + ' deleted'
 					if err?
 						log.error err
 					callback()
 			moveFile = (callback) ->
 				fs.move file_path, __dirname + path.sep + filename, (err) ->
+					log.debug file_path + ' moved'
 					if err?
 						log.error err
 					callback()
@@ -104,7 +83,7 @@ installNewVersion = (callback) ->
 			]
 				
 		log.info 'Replacing old files with the new ones...'
-		fs.readdir temp_directory + path.sep + 'market-1.0.0-pre1', (err, files) ->
+		fs.readdir new_market_directory, (err, files) ->
 			if err?
 				log.error err
 			async.each files, replaceFile, ->
@@ -138,13 +117,11 @@ installNewVersion = (callback) ->
 
 	async.series [
 		createTempDirectory
-		downloadZip
-		extractZip
-		deleteZip
+		download
 		moveOldConfig
 		replaceFiles
-		#deleteTempDirectory
-		#installDependencies
+		deleteTempDirectory
+		installDependencies
 	]
 
 

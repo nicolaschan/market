@@ -35,10 +35,10 @@
   };
 
   installNewVersion = function(callback) {
-    var createTempDirectory, deleteTempDirectory, deleteZip, downloadZip, exec, extractZip, fs, https, installDependencies, moveOldConfig, path, replaceFiles, temp_directory, zip_file_path;
+    var createTempDirectory, deleteTempDirectory, download, exec, fs, https, installDependencies, moveOldConfig, path, replaceFiles, temp_directory, zip_file_path;
     log.info('Updating...');
     https = require('https');
-    fs = require('fs');
+    fs = require('fs-extra');
     path = require('path');
     exec = require('child_process').exec;
     temp_directory = __dirname + path.sep + 'temp';
@@ -50,38 +50,13 @@
       }
       return callback();
     };
-    downloadZip = function(callback) {
-      var archive_url, request, zip_file;
-      zip_file = fs.createWriteStream(zip_file_path);
-      log.info('Downloading new version...');
-      archive_url = 'https://codeload.github.com/nicolaschan/market/zip/v1.0.0-pre1';
-      return request = https.get(archive_url, function(res) {
-        res.pipe(zip_file);
-        return res.on('end', function() {
-          log.success('Download complete');
-          return callback();
-        });
-      });
-    };
-    extractZip = function(callback) {
-      var unzip, zip_readstream;
-      log.info('Extracting downloaded zip file...');
-      unzip = require('unzip');
-      zip_readstream = fs.createReadStream(zip_file_path);
-      return zip_readstream.pipe(unzip.Extract({
-        path: temp_directory
-      })).on('finish', function() {
-        log.success('Extract complete');
-        return callback();
-      });
-    };
-    deleteZip = function(callback) {
-      log.info('Deleting zip file...');
-      return fs.unlink(zip_file_path, function(err) {
+    download = function(callback) {
+      return exec('git clone https://github.com/nicolaschan/market.git ' + temp_directory, function(err, stdout, stderr) {
         if (err != null) {
-          return log.error(err);
+          return log.erorr('An error occurred trying to download the latest version, make sure you have git installed');
         } else {
-          return log.success('Zip file deleted');
+          log.success('New version downloaded');
+          return callback();
         }
       });
     };
@@ -102,42 +77,44 @@
     };
     replaceFiles = function(callback) {
       var new_market_directory, replaceFile;
-      new_market_directory = temp_directory + path.sep + 'market-' + '1.0.0-pre1';
+      new_market_directory = temp_directory;
       replaceFile = function(filename, callback) {
-        var file_path;
+        var deleteFile, done, file_path, moveFile;
+        done = 0;
         file_path = new_market_directory + path.sep + filename;
-        return fs.stat(file_path, function(err, stats) {
-          var ncp;
-          if (stats.isFile()) {
-            fs.rename(file_path, __dirname + path.sep + filename, function(err) {
-              if (err != null) {
-                log.error(err);
-              }
-              return callback();
-            });
-          }
-          if (stats.isDirectory()) {
-            ncp = require('ncp').ncp;
-            return ncp(file_path, __dirname + path.sep + filename, function(err) {
-              if (err != null) {
-                log.error(err);
-              }
-              return callback();
-            });
-          }
-        });
+        deleteFile = function(callback) {
+          return fs.remove(__dirname + path.sep + filename, function(err) {
+            log.debug(__dirname + path.sep + filename + ' deleted');
+            if (err != null) {
+              log.error(err);
+            }
+            return callback();
+          });
+        };
+        moveFile = function(callback) {
+          return fs.move(file_path, __dirname + path.sep + filename, function(err) {
+            log.debug(file_path + ' moved');
+            if (err != null) {
+              log.error(err);
+            }
+            return callback();
+          });
+        };
+        return async.series([deleteFile, moveFile, callback]);
       };
       log.info('Replacing old files with the new ones...');
-      return fs.readdir(temp_directory + path.sep + 'market-1.0.0-pre1', function(err, files) {
+      return fs.readdir(new_market_directory, function(err, files) {
         if (err != null) {
-          return log.error(err);
-        } else {
-          return async.each(files, replaceFile, callback);
+          log.error(err);
         }
+        return async.each(files, replaceFile, function() {
+          log.success('Done replacing files');
+          return callback();
+        });
       });
     };
     deleteTempDirectory = function(callback) {
-      var escapeSpaces, temp_directory_safe_path;
+      var escapeSpaces;
       log.info('Deleting temp folder...');
       escapeSpaces = function(string) {
         var addToOutput, i, len, output, piece, pieces, ref;
@@ -153,12 +130,9 @@
         }
         return output;
       };
-      temp_directory_safe_path = escapeSpaces(temp_directory);
-      return exec('rm -rf ' + temp_directory_safe_path, function(err, stdout, stderr) {
+      return fs.remove(temp_directory, function(err) {
         if (err != null) {
           log.error(err);
-        } else {
-          log.success('Temp folder deleted');
         }
         return callback();
       });
@@ -175,7 +149,7 @@
         }
       });
     };
-    return async.series([createTempDirectory, downloadZip, extractZip, moveOldConfig, replaceFiles, installDependencies]);
+    return async.series([createTempDirectory, download, moveOldConfig, replaceFiles, deleteTempDirectory, installDependencies]);
   };
 
   getLatestPackageInfo(function(latest_package) {
