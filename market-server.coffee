@@ -741,6 +741,7 @@ start = (ready) ->
 						else
 							res.send
 								success: yes
+								message: 'Sent $' + req.body.amount + ' to ' + req.body.to
 				else
 					res.send
 						success: no
@@ -1139,9 +1140,14 @@ start = (ready) ->
 										callback()
 								convertFrom = (callback) ->
 									utilities.idToUser transaction.from, (user) ->
-										transaction.from =
-											username: user.username
-											bankid: user.bankid
+										if user?
+											transaction.from =
+												username: user.username
+												bankid: user.bankid
+										else
+											transaction.from = 
+												username: config.user_not_found
+												bankid: config.user_not_found
 										callback()
 								async.parallel [
 									convertTo
