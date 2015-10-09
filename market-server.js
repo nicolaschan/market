@@ -284,6 +284,12 @@
         };
         transferMoney = function(callback) {
           var adjustBalance, makePayment;
+          if (!(amount > 0)) {
+            if (amount === 0) {
+              return callback();
+            }
+            return callback('Must send at least $0');
+          }
           if (!((utilities.hasEnoughFunds(from, utilities.calculateTotal(amount))) || (from.taxExempt && (utilities.hasEnoughFunds(from, amount))))) {
             return callback('Not enough funds');
           }
@@ -888,7 +894,8 @@
               });
             } else {
               return res.send({
-                success: true
+                success: true,
+                message: 'Item purchased, view receipt on the "Receipts" page'
               });
             }
           });
@@ -1157,7 +1164,10 @@
           limit = req.query.limit != null ? parseInt(req.query.limit) : null;
           skip = req.query.skip != null ? parseInt(req.query.skip) : 0;
           return models.items.find({
-            forSale: true
+            forSale: true,
+            quantity: {
+              $gt: 0
+            }
           }).skip(skip).limit(limit).lean().exec(function(err, data) {
             var convertIdToUsername;
             if (data != null) {
@@ -1460,7 +1470,10 @@
         });
         app.get('/', function(req, res) {
           if (req.user != null) {
-            return res.render('index.jade');
+            return res.render('index.jade', {
+              title: config.page_text.title,
+              bankid: req.user.bankid
+            });
           } else {
             return res.redirect('/signin');
           }

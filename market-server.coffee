@@ -235,6 +235,10 @@ start = (ready) ->
           else
             callback 'Could not find recipient'
       transferMoney = (callback) ->
+        unless amount > 0
+          if amount is 0
+            return callback()
+          return callback 'Must send at least $0'
         unless ((utilities.hasEnoughFunds from, utilities.calculateTotal(amount)) or (from.taxExempt and (utilities.hasEnoughFunds from, amount)))
           return callback 'Not enough funds'
 
@@ -764,6 +768,7 @@ start = (ready) ->
           else
             res.send
               success: yes
+              message: 'Item purchased, view receipt on the "Receipts" page'
       app.post '/api/account/username', (req, res) ->
         res.set 'Content-Type', 'text/json'
 
@@ -976,6 +981,9 @@ start = (ready) ->
 
         models.items.find {
           forSale: yes
+          quantity: {
+            $gt: 0
+          }
         }
           .skip skip
           .limit limit
@@ -1236,7 +1244,9 @@ start = (ready) ->
           res.redirect '/'
       app.get '/', (req, res) ->
         if req.user?
-          res.render 'index.jade'
+          res.render 'index.jade',
+            title: config.page_text.title
+            bankid: req.user.bankid
         else
           res.redirect '/signin'
       app.get '/jade/:name', (req, res) ->
