@@ -660,7 +660,7 @@
               user.username_lower = req.body.user.username.toLowerCase();
             }
             if (req.body.user.balance != null) {
-              user.balance = req.body.user.balance;
+              user.balance = req.body.user.balance * 100;
             }
             if (req.body.user.tagline != null) {
               user.tagline = req.body.user.tagline;

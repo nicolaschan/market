@@ -580,7 +580,7 @@ start = (ready) ->
             user.username = req.body.user.username
             user.username_lower = req.body.user.username.toLowerCase()
           if req.body.user.balance?
-            user.balance = req.body.user.balance
+            user.balance = (req.body.user.balance * 100)
           if req.body.user.tagline?
             user.tagline = req.body.user.tagline
           if req.body.user.bankid?
