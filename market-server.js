@@ -215,8 +215,8 @@
       logger.debug('Connecting to database ' + database_url);
       mongoose.connect(database_url);
       conn.once('error', function(err) {
-        callback(err);
-        throw err;
+        logger.error('Error connecting to database');
+        return callback(err);
       });
       return conn.once('open', function() {
         logger.info('Successfully connected to database');
@@ -546,7 +546,12 @@
           return callback();
         });
       };
-      return async.parallel([addTaxRecipient], callback);
+      return async.parallel([addTaxRecipient], function(err) {
+        if (err == null) {
+          logger.debug('Utilities added');
+        }
+        return callback(err);
+      });
     };
     startWebApp = function(callback) {
       var app, configureExpress, express, passwordHasher, startWebServer;
@@ -655,6 +660,7 @@
             });
           }
           return utilities.idToUser(req.body.user._id, function(user) {
+            var saveUser, updatePassword;
             if (user == null) {
               return res.send({
                 success: false,
@@ -674,20 +680,30 @@
             if (req.body.user.bankid != null) {
               user.bankid = req.body.user.bankid;
             }
-            if (req.body.user.password != null) {
-              passwordHasher(password).hash(function(err, hash) {
-                if (err == null) {
-                  return user.password = hash;
-                }
-              });
-            }
             if (req.body.user.trusted != null) {
               user.trusted = req.body.user.trusted;
             }
             if (req.body.user.taxExempt != null) {
               user.taxExempt = req.body.user.taxExempt;
             }
-            return user.save(function(err) {
+            updatePassword = function(callback) {
+              if (req.body.user.password != null) {
+                return passwordHasher(req.body.user.password).hash(function(err, hash) {
+                  if (err == null) {
+                    user.password = hash;
+                  }
+                  return callback(err);
+                });
+              } else {
+                return callback();
+              }
+            };
+            saveUser = function(callback) {
+              return user.save(function(err) {
+                return callback(err);
+              });
+            };
+            return async.series([updatePassword, saveUser], function(err) {
               if (err != null) {
                 return res.send({
                   success: false,
@@ -740,10 +756,6 @@
                 if (body.success) {
                   return callback();
                 } else {
-                  respond({
-                    success: false,
-                    message: 'Could not verify captcha'
-                  });
                   return callback('Could not verify captcha');
                 }
               });
@@ -849,7 +861,13 @@
               }
             ], callback);
           };
-          return async.series([verifyCaptcha, createAccount], function() {
+          return async.series([verifyCaptcha, createAccount], function(err) {
+            if (err != null) {
+              return respond({
+                success: false,
+                message: err
+              });
+            }
             return respond({
               success: true
             });
@@ -1345,6 +1363,7 @@
             if (data != null) {
               convertIdToUsername = function(transaction, callback) {
                 var convertFrom, convertTo;
+                transaction.date = new Date(transaction.date).toString();
                 convertTo = function(callback) {
                   return utilities.idToUser(transaction.to, function(user) {
                     transaction.to = {
@@ -1454,7 +1473,7 @@
           var captchadisplay, captchakey;
           if (req.user == null) {
             captchadisplay = config.captcha.enabled ? 'inline' : 'none';
-            captchakey = config.captcha.site_key ? config.captcha_site_key : 'none';
+            captchakey = config.captcha.site_key ? config.captcha.site_key : 'none';
             return res.render('createaccount.jade', {
               message: req.flash('message'),
               username: req.flash('username'),
@@ -1541,12 +1560,7 @@
       };
       return async.series([configureExpress, startWebServer], callback);
     };
-    return async.series([
-      createDirectories, connectToDatabase, addUtilities, startWebApp, function(callback) {
-        logger.info('Server startup complete');
-        return callback();
-      }
-    ], ready);
+    return async.series([createDirectories, connectToDatabase, addUtilities, startWebApp], ready);
   };
 
   module.exports.start = start;

@@ -79,7 +79,6 @@ start = (ready) ->
       shortid = require 'shortid'
       return shortid.generate()
 
-
   createDirectories = (callback) ->
     fs = require 'fs-extra'
 
@@ -181,8 +180,8 @@ start = (ready) ->
     
     mongoose.connect database_url
     conn.once 'error', (err) ->
+      logger.error 'Error connecting to database'
       callback err
-      throw err
     conn.once 'open', ->
       logger.info 'Successfully connected to database'
       callback()
@@ -468,7 +467,10 @@ start = (ready) ->
 
     async.parallel [
       addTaxRecipient
-    ], callback
+    ], (err) ->
+      unless err?
+        logger.debug 'Utilities added'
+      callback err
   startWebApp = (callback) ->
     express = require 'express'
     app = express()
@@ -589,24 +591,35 @@ start = (ready) ->
             user.tagline = req.body.user.tagline
           if req.body.user.bankid?
             user.bankid = req.body.user.bankid
-          if req.body.user.password?
-            passwordHasher password
-              .hash (err, hash) ->
-                unless err?
-                  user.password = hash
           if req.body.user.trusted?
             user.trusted = req.body.user.trusted
           if req.body.user.taxExempt?
             user.taxExempt = req.body.user.taxExempt
 
-          user.save (err) ->
-            if err?
-              res.send
-                success: no
-                message: err
+          updatePassword = (callback) ->
+            if req.body.user.password?
+              passwordHasher req.body.user.password
+                .hash (err, hash) ->
+                  unless err?
+                    user.password = hash
+                  callback err
             else
-              res.send
-                success: yes
+              callback()
+          saveUser = (callback) ->
+            user.save (err) ->
+              callback err
+
+          async.series [
+            updatePassword
+            saveUser
+          ], (err) ->
+            if err?
+                res.send
+                  success: no
+                  message: err
+              else
+                res.send
+                  success: yes
       app.get '/api/math/calculate-tax', (req, res) ->
         res.set 'Content-Type', 'text/json'
         tax = utilities.calculateTax(parseFloat(req.query.amount))
@@ -639,9 +652,6 @@ start = (ready) ->
               if body.success
                 callback()
               else
-                respond
-                  success: no
-                  message: 'Could not verify captcha'
                 callback 'Could not verify captcha'
         createAccount = (callback) ->
           logger.trace 'Creating an account...'
@@ -732,8 +742,12 @@ start = (ready) ->
         async.series [
           verifyCaptcha
           createAccount
-        ], ->
-          respond
+        ], (err) ->
+          if err?
+            return respond
+              success: no
+              message: err
+          return respond
             success: yes
       app.post '/api/send', (req, res) ->
         res.set 'Content-Type', 'text/json'
@@ -1144,6 +1158,7 @@ start = (ready) ->
           .exec (err, data) ->
             if data?
               convertIdToUsername = (transaction, callback) ->
+                transaction.date = new Date(transaction.date).toString()
                 convertTo = (callback) ->
                   utilities.idToUser transaction.to, (user) ->
                     transaction.to = 
@@ -1230,7 +1245,7 @@ start = (ready) ->
       app.get '/createaccount', (req, res) ->
         unless req.user?
           captchadisplay = if config.captcha.enabled then 'inline' else 'none'
-          captchakey = if config.captcha.site_key then config.captcha_site_key else 'none'
+          captchakey = if config.captcha.site_key then config.captcha.site_key else 'none'
 
           res.render 'createaccount.jade',
             message: req.flash 'message'
@@ -1317,9 +1332,6 @@ start = (ready) ->
     connectToDatabase
     addUtilities
     startWebApp
-    (callback) ->
-      logger.info 'Server startup complete'
-      callback()
   ], ready
 
 module.exports.start = start

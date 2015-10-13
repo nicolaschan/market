@@ -70,12 +70,17 @@
         logger.info('Starting services...');
         return async.series([startServer], callback);
       };
-      done = function() {
+      done = function(err) {
         var getElapsedTime;
-        getElapsedTime = function() {
-          return (Date.now() - startTime) / 1000;
-        };
-        return logger.info('Service startup done! (' + getElapsedTime() + ' sec.)');
+        if (err == null) {
+          getElapsedTime = function() {
+            return (Date.now() - startTime) / 1000;
+          };
+          return logger.info('Service startup done! (' + getElapsedTime() + ' sec.)');
+        } else {
+          logger.error(err);
+          return cluster.worker.disconnect();
+        }
       };
       return async.series([setOnDeath, startServices], done);
     });

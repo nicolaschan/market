@@ -53,10 +53,14 @@ else
 			async.series [
 				startServer
 			], callback
-		done = ->
-			getElapsedTime = ->
-				(Date.now() - startTime) / 1000
-			logger.info 'Service startup done! (' + getElapsedTime() + ' sec.)'
+		done = (err) ->
+			unless err?
+				getElapsedTime = ->
+					(Date.now() - startTime) / 1000
+				logger.info 'Service startup done! (' + getElapsedTime() + ' sec.)'
+			else
+				logger.error err
+				cluster.worker.disconnect()
 
 		async.series [
 			setOnDeath
