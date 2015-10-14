@@ -94,7 +94,7 @@
 						return this.getTotal(amount) * store.quantity;
 					};
 					this.enoughFunds = function(price) {
-						if (this.getTotal(price) <= global_values.balance) {
+						if (this.getTotal(price) <= global_values.balance || global_values.isMoneyFactory) {
 							return true;
 						} else {
 							return false;
@@ -478,7 +478,7 @@
 							return true;
 						};
 						var enough_funds = function(balance, amount) {
-							if (global_values.isMoneySource) {
+							if (global_values.isMoneyFactory) {
 								return true;
 							}
 							if (balance < amount) {
@@ -1039,7 +1039,7 @@
 				var store = this;
 
 				updaters.navbar = function() {
-					$http.get('/api/user?fields=username,bankid,balance,tagline,taxRate,isAdmin,isMoneySource').then(function(response) {
+					$http.get('/api/user?fields=username,bankid,balance,tagline,taxRate,isAdmin,isMoneyFactory').then(function(response) {
 						if (!response.data) {
 							$window.location.href = '/signin';
 						}
@@ -1049,7 +1049,7 @@
 						global_values.tagline = response.data.tagline;
 						global_values.taxRate = response.data.taxRate;
 						global_values.isAdmin = response.data.isAdmin;
-						global_values.isMoneySource = response.data.isMoneySource;
+						global_values.isMoneyFactory = response.data.isMoneyFactory;
 						setTimeout(updaters.navbar, 1000);
 					});
 				};
