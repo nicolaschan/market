@@ -27,8 +27,7 @@
         "footer": "Market for nc99 Minecraft Servers"
     },
     "admins": ["market"],
-    "money_source": ["deposit"],
-    "money_void": ["void"],
+    "money_factory": ["factory"],
     "tax": {
         "rate": 0.05,
         "recipient": "tax"

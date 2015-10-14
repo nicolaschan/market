@@ -31,14 +31,9 @@ start = (ready) ->
       if ((admins.indexOf bankid) > -1)
         return yes
       return no
-    checkMoneySource: (bankid) ->
-      sources = config.money_source
-      if ((sources.indexOf bankid) > -1)
-        return yes
-      return no
-    checkMoneyVoid: (bankid) ->
-      voids = config.money_void
-      if ((voids.indexOf bankid) > -1)
+    isMoneyFactory: (bankid) ->
+      factories = config.money_factory
+      if ((factories.indexOf bankid) > -1)
         return yes
       return no
     displayUser: (username, bankid) ->
@@ -107,6 +102,7 @@ start = (ready) ->
         id: String
         owner: String
         name: String
+        description: String
         price: Number
         quantity: Number
         instructions: String
@@ -136,6 +132,8 @@ start = (ready) ->
         tagline: String
         trusted: Boolean
         taxExempt: Boolean
+        enableWhitelist: Boolean
+        whitelistedUsers: [String]
       }, {
         collection: 'users'
       }
@@ -234,16 +232,21 @@ start = (ready) ->
           else
             callback 'Could not find recipient'
       transferMoney = (callback) ->
+        if to.enableWhitelist and (not (to.whitelistedUsers.indexOf(from.bankid) > -1))
+          return callback 'The user you are trying to send to is not accepting money from you'
         unless amount > 0
           if amount is 0
             return callback()
           return callback 'Must send at least $0'
-        unless ((utilities.hasEnoughFunds from, utilities.calculateTotal(amount)) or (from.taxExempt and (utilities.hasEnoughFunds from, amount)))
+        unless ((utilities.hasEnoughFunds from, utilities.calculateTotal(amount)) or (from.taxExempt and (utilities.hasEnoughFunds from, amount))) or (utilities.isMoneyFactory from.bankid)
           return callback 'Not enough funds'
 
         adjustBalance = (user, change, callback) ->
-          user.balance = user.balance + (change * 100)
-          user.save callback
+          unless utilities.isMoneyFactory(user.bankid)
+            user.balance = user.balance + (change * 100)
+            user.save callback
+          else
+            callback()
         makePayment = (from, to, amount, memo, generated, callback) ->
           async.parallel [
             (callback) ->
@@ -562,6 +565,33 @@ start = (ready) ->
 
       app.get '/user-content/item-images', (req, res) ->
         res.sendFile __dirname + '/user-content/item-images/' + req.query.id
+      app.get '/api/stats', (req, res) ->
+        res.set 'Content-Type', 'text/json'
+        
+        numberOfUsers = 0
+        getNumberOfUsers = (callback) ->
+          models.users.find {}
+            .count()
+            .exec (err, count) ->
+              numberOfUsers = count
+              callback err
+
+        totalMoney = 0
+        calculateTotalMoney = (callback) ->
+          models.users.find {}
+            .lean()
+            .exec (err, users) ->
+              for user in users
+                totalMoney += (user.balance / 100)
+              callback err
+
+        async.series [
+          getNumberOfUsers
+          calculateTotalMoney
+        ], (err) ->
+          res.send
+            totalMoney: totalMoney
+            numberOfUsers: numberOfUsers
       app.get '/api/config', (req, res) ->
         res.set 'Content-Type', 'text/json'
         res.send fieldSelector.selectWithQueryString(req.query.fields,
@@ -704,6 +734,8 @@ start = (ready) ->
                 tagline: config.default_tagline
                 trusted: no
                 taxExempt: no
+                enableWhitelist: no
+                whitelistedUsers: []
               }
 
               user.save (err) ->
@@ -761,7 +793,7 @@ start = (ready) ->
             else
               res.send
                 success: yes
-                message: 'Sent $' + req.body.amount + ' to ' + req.body.to
+                message: 'Sent $' + req.body.amount.toLocaleString() + ' to ' + req.body.to
         else
           res.send
             success: no
@@ -861,6 +893,25 @@ start = (ready) ->
         utilities.idToUser req.user._id, (user) ->
           user.tagline = req.body.tagline
           user.save ->
+            return res.send
+              success: yes
+      app.post '/api/account/whitelist', (req, res) ->
+        res.set 'Content-Type', 'text/json'
+
+        unless req.user?
+          return res.send
+            success: no
+            message: 'Not signed in'
+
+        utilities.idToUser req.user._id, (user) ->
+          user.enableWhitelist = req.body.enabled
+          user.whitelistedUsers = req.body.users
+          user.save (err) ->
+            if err?
+              return res.send
+                success: no
+                message: err
+            
             return res.send
               success: yes
       app.post '/api/item/add', (req, res) ->
@@ -1054,8 +1105,9 @@ start = (ready) ->
             isAdmin: utilities.checkIsAdmin(req.user.bankid)
             trusted: req.user.trusted
             taxExempt: req.user.taxExempt
-            isMoneySource: utilities.checkMoneySource(req.user.bankid)
-            isMoneyVoid: utilities.checkMoneyVoid(req.user.bankid)
+            enableWhitelist: req.user.enableWhitelist
+            whitelistedUsers: req.user.whitelistedUsers
+            isMoneyFactory: utilities.isMoneyFactory(req.user.bankid)
           )
         else
           res.send null

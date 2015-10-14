@@ -37,18 +37,10 @@
         }
         return false;
       },
-      checkMoneySource: function(bankid) {
-        var sources;
-        sources = config.money_source;
-        if ((sources.indexOf(bankid)) > -1) {
-          return true;
-        }
-        return false;
-      },
-      checkMoneyVoid: function(bankid) {
-        var voids;
-        voids = config.money_void;
-        if ((voids.indexOf(bankid)) > -1) {
+      isMoneyFactory: function(bankid) {
+        var factories;
+        factories = config.money_factory;
+        if ((factories.indexOf(bankid)) > -1) {
           return true;
         }
         return false;
@@ -142,6 +134,7 @@
           id: String,
           owner: String,
           name: String,
+          description: String,
           price: Number,
           quantity: Number,
           instructions: String,
@@ -170,7 +163,9 @@
           balance: Number,
           tagline: String,
           trusted: Boolean,
-          taxExempt: Boolean
+          taxExempt: Boolean,
+          enableWhitelist: Boolean,
+          whitelistedUsers: [String]
         }, {
           collection: 'users'
         });
@@ -284,18 +279,25 @@
         };
         transferMoney = function(callback) {
           var adjustBalance, makePayment;
+          if (to.enableWhitelist && (!(to.whitelistedUsers.indexOf(from.bankid) > -1))) {
+            return callback('The user you are trying to send to is not accepting money from you');
+          }
           if (!(amount > 0)) {
             if (amount === 0) {
               return callback();
             }
             return callback('Must send at least $0');
           }
-          if (!((utilities.hasEnoughFunds(from, utilities.calculateTotal(amount))) || (from.taxExempt && (utilities.hasEnoughFunds(from, amount))))) {
+          if (!(((utilities.hasEnoughFunds(from, utilities.calculateTotal(amount))) || (from.taxExempt && (utilities.hasEnoughFunds(from, amount)))) || (utilities.isMoneyFactory(from.bankid)))) {
             return callback('Not enough funds');
           }
           adjustBalance = function(user, change, callback) {
-            user.balance = user.balance + (change * 100);
-            return user.save(callback);
+            if (!utilities.isMoneyFactory(user.bankid)) {
+              user.balance = user.balance + (change * 100);
+              return user.save(callback);
+            } else {
+              return callback();
+            }
           };
           makePayment = function(from, to, amount, memo, generated, callback) {
             return async.parallel([
@@ -643,6 +645,34 @@
         app.get('/user-content/item-images', function(req, res) {
           return res.sendFile(__dirname + '/user-content/item-images/' + req.query.id);
         });
+        app.get('/api/stats', function(req, res) {
+          var calculateTotalMoney, getNumberOfUsers, numberOfUsers, totalMoney;
+          res.set('Content-Type', 'text/json');
+          numberOfUsers = 0;
+          getNumberOfUsers = function(callback) {
+            return models.users.find({}).count().exec(function(err, count) {
+              numberOfUsers = count;
+              return callback(err);
+            });
+          };
+          totalMoney = 0;
+          calculateTotalMoney = function(callback) {
+            return models.users.find({}).lean().exec(function(err, users) {
+              var i, len, user;
+              for (i = 0, len = users.length; i < len; i++) {
+                user = users[i];
+                totalMoney += user.balance / 100;
+              }
+              return callback(err);
+            });
+          };
+          return async.series([getNumberOfUsers, calculateTotalMoney], function(err) {
+            return res.send({
+              totalMoney: totalMoney,
+              numberOfUsers: numberOfUsers
+            });
+          });
+        });
         app.get('/api/config', function(req, res) {
           res.set('Content-Type', 'text/json');
           return res.send(fieldSelector.selectWithQueryString(req.query.fields, {
@@ -818,7 +848,9 @@
                   balance: 0,
                   tagline: config.default_tagline,
                   trusted: false,
-                  taxExempt: false
+                  taxExempt: false,
+                  enableWhitelist: false,
+                  whitelistedUsers: []
                 });
                 return user.save(function(err) {
                   if (err != null) {
@@ -885,7 +917,7 @@
               } else {
                 return res.send({
                   success: true,
-                  message: 'Sent $' + req.body.amount + ' to ' + req.body.to
+                  message: 'Sent $' + req.body.amount.toLocaleString() + ' to ' + req.body.to
                 });
               }
             });
@@ -1015,6 +1047,30 @@
           return utilities.idToUser(req.user._id, function(user) {
             user.tagline = req.body.tagline;
             return user.save(function() {
+              return res.send({
+                success: true
+              });
+            });
+          });
+        });
+        app.post('/api/account/whitelist', function(req, res) {
+          res.set('Content-Type', 'text/json');
+          if (req.user == null) {
+            return res.send({
+              success: false,
+              message: 'Not signed in'
+            });
+          }
+          return utilities.idToUser(req.user._id, function(user) {
+            user.enableWhitelist = req.body.enabled;
+            user.whitelistedUsers = req.body.users;
+            return user.save(function(err) {
+              if (err != null) {
+                return res.send({
+                  success: false,
+                  message: err
+                });
+              }
               return res.send({
                 success: true
               });
@@ -1244,8 +1300,9 @@
               isAdmin: utilities.checkIsAdmin(req.user.bankid),
               trusted: req.user.trusted,
               taxExempt: req.user.taxExempt,
-              isMoneySource: utilities.checkMoneySource(req.user.bankid),
-              isMoneyVoid: utilities.checkMoneyVoid(req.user.bankid)
+              enableWhitelist: req.user.enableWhitelist,
+              whitelistedUsers: req.user.whitelistedUsers,
+              isMoneyFactory: utilities.isMoneyFactory(req.user.bankid)
             }));
           } else {
             return res.send(null);

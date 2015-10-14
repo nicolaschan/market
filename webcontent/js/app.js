@@ -794,6 +794,39 @@
 					this.successMessage = '';
 					this.errorMessage = '';
 
+					this.tagline = '';
+					this.changeTagline = function() {
+						var taglineTemp = store.tagline;
+						store.tagline = '';
+
+						if (taglineTemp.length >= 0) {
+							$http.post('/api/account/tagline', {
+								tagline: taglineTemp
+							}).then(function(response) {
+								if (response.data.success) {
+									store.errorMessage = '';
+									store.successMessage = 'Tagline changed'
+									global_values.tagline = taglineTemp;
+								} else {
+									store.successMessage = '';
+									store.errorMessage = response.data.message;
+								}
+							}, function(response) {
+								store.successMessage = '';
+								store.errorMessage = error_messages.communication_error;
+							});
+						} else {
+							store.successMessage = '';
+							store.errorMessage = 'No tagline provided'
+						}
+					};
+					this.checkTagline = function(event) {
+						var key = event.keyCode;
+						if (key === 13) {
+							this.changeTagline();
+						}
+					};
+
 					this.password = '';
 					this.changePassword = function() {
 						var passwordTemp = store.password;
@@ -839,6 +872,7 @@
 								if (response.data.success) {
 									store.errorMessage = '';
 									store.successMessage = 'Username changed';
+									global_values.username = usernameTemp;
 								} else {
 									store.successMessage = '';
 									store.errorMessage = response.data.message;
@@ -858,6 +892,50 @@
 							this.changeUsername();
 						}
 					}
+
+					this.enableWhitelist = false;
+					this.whitelistedUsers = [];
+					this.whitelistAdd = '';
+					updaters.accountMoneyAcceptance = function() {
+						$http.get('/api/user?fields=enableWhitelist,whitelistedUsers').then(function(response) {
+							store.enableWhitelist = response.data.enableWhitelist;
+							store.whitelistedUsers = response.data.whitelistedUsers;
+						});
+					};
+					updaters.accountMoneyAcceptance();
+					this.removeFromWhitelist = function(user) {
+						store.whitelistedUsers.splice(store.whitelistedUsers.indexOf(user), 1);
+					};
+					this.checkWhitelistAdd = function(event) {
+						var key = event.keyCode;
+						if (key === 13) {
+							var bankid = (store.whitelistAdd.charAt(0) !== '#') ? store.whitelistAdd : store.whitelistAdd.substring(1);
+							if (!(store.whitelistedUsers.indexOf(bankid) > -1)) {
+								store.whitelistedUsers.push(bankid);
+							}
+							store.whitelistAdd = '';
+						}
+					};
+					this.updateMoneyAcceptance = function() {
+						$http.post('/api/account/whitelist', {
+							enabled: store.enableWhitelist,
+							users: store.whitelistedUsers
+						}).then(function(response) {
+							if (response.data.success) {
+								store.errorMessage = '';
+								store.successMessage = 'Money acceptance settings updated';
+							} else {
+								store.successMessage = '';
+								store.errorMessage = response.data.message;
+							}
+						}, function(response) {
+							store.successMessage = '';
+							store.errorMessage = error_messages.communication_error;
+						});
+					};
+					this.revertMoneyAcceptanceChanges = function() {
+						updaters.accountMoneyAcceptance();
+					};
 				},
 				controllerAs: 'accountCtrl'
 			})
@@ -961,13 +1039,14 @@
 				var store = this;
 
 				updaters.navbar = function() {
-					$http.get('/api/user?fields=username,bankid,balance,taxRate,isAdmin,isMoneySource').then(function(response) {
+					$http.get('/api/user?fields=username,bankid,balance,tagline,taxRate,isAdmin,isMoneySource').then(function(response) {
 						if (!response.data) {
 							$window.location.href = '/signin';
 						}
 						global_values.username = response.data.username;
 						global_values.bankid = response.data.bankid;
 						global_values.balance = response.data.balance;
+						global_values.tagline = response.data.tagline;
 						global_values.taxRate = response.data.taxRate;
 						global_values.isAdmin = response.data.isAdmin;
 						global_values.isMoneySource = response.data.isMoneySource;
