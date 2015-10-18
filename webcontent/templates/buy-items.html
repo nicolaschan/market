@@ -31,29 +31,29 @@
 				</h3>
 				<p>{{item.description}}</p>
 				<p>
-					<button type="button" class="btn btn-default" ng-class="{ 'btn-success' : itemsCtrl.enoughFunds(item.price), 'btn-danger disabled' : !itemsCtrl.enoughFunds(item.price) }" ng-disabled="{{!itemsCtrl.enoughFunds(item.price)}}" data-toggle="modal" data-target="#item{{itemsCtrl.getItemIndex(item)}}" ng-click="itemsCtrl.quantity = 1">Purchase for {{itemsCtrl.getTotal(item.price) | currency}}</button>
+					<button type="button" class="btn btn-default" ng-class="{ 'btn-success' : itemsCtrl.enoughFunds(item.price), 'btn-danger disabled' : !itemsCtrl.enoughFunds(item.price) }" ng-disabled="{{!itemsCtrl.enoughFunds(item.price)}}" ng-click="itemsCtrl.showBuyModal(item)">Purchase for {{itemsCtrl.getTotal(item.price) | currency}}</button>
 				</p>
-				<div id="item{{itemsCtrl.getItemIndex(item)}}" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-header">
-								<button type="button" class="close" data-dismiss="modal">&times;</button>
-								<h4 class="modal-title">Confirm Purchase</h4>
-							</div>
-							<div class="modal-body">
-								<p>Are you sure you want to purchase <strong>{{item.name}}</strong> for <strong>{{itemsCtrl.getTotalWithQuantity(item.price) | currency}}</strong>?</p>
-								<p>After this purchase, you will have <strong>{{itemsCtrl.getBalanceAfter(itemsCtrl.getTotalWithQuantity(item.price)) | currency}}</strong> in your account.</p>
-								<div class="input-group">
-									<span class="input-group-addon">Quantity</span>
-									<input type="number" class="form-control" placeholder="Quantity" ng-model="itemsCtrl.quantity" min="1" max="{{item.quantity}}">
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-								<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="itemsCtrl.buy(item._id)">Pay {{itemsCtrl.getTotalWithQuantity(item.price) | currency}}</button>
-							</div>
-						</div>
+			</div>
+		</div>
+	</div>
+	<div id="itemBuyModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 class="modal-title">Confirm Purchase</h4>
+				</div>
+				<div class="modal-body">
+					<p>Are you sure you want to purchase <strong>{{itemsCtrl.viewingItem.name}}</strong> for <strong>{{itemsCtrl.getTotalWithQuantity(item.price) | currency}}</strong>?</p>
+					<p>After this purchase, you will have <strong>{{itemsCtrl.getBalanceAfter(itemsCtrl.getTotalWithQuantity(itemsCtrl.viewingItem.price)) | currency}}</strong> in your account.</p>
+					<div class="input-group">
+						<span class="input-group-addon">Quantity</span>
+						<input type="number" class="form-control" placeholder="Quantity" ng-model="itemsCtrl.quantity" min="1" max="{{itemsCtrl.viewingItem.quantity}}">
 					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+					<button type="button" class="btn btn-success" data-dismiss="modal" ng-click="itemsCtrl.buy(itemsCtrl.viewingItem._id)">Pay {{itemsCtrl.getTotalWithQuantity(itemsCtrl.viewingItem.price) | currency}}</button>
 				</div>
 			</div>
 		</div>

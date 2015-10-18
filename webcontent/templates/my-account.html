@@ -63,3 +63,30 @@
 		<button type="button" class="btn btn-default" ng-click="accountCtrl.revertMoneyAcceptanceChanges()">Revert Changes</button>
 	</div>
 </div>
+<div class="panel panel-danger">
+	<div class="panel-heading">
+		Danger Zone
+	</div>
+	<div class="panel-body">
+		<div class="input-group">
+			<button type="button" class="btn btn-danger" data-toggle="modal" data-target="#deleteAccountModal"><span class="glyphicon glyphicon-trash"></span> Delete Account</button>
+		</div>
+	</div>
+	<div id="deleteAccountModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 class="modal-title">Confirm Delete</h4>
+				</div>
+				<div class="modal-body">
+					<p>Are you sure you want to delete your account? All your items will be deleted and your money will be transferred to the tax recipient. This cannot be undone.</p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+					<button type="button" class="btn btn-danger" data-dismiss="modal" ng-click="accountCtrl.deleteAccount()"><span class="glyphicon glyphicon-remove"></span> Delete this Account</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

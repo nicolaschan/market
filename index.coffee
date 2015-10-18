@@ -1,5 +1,5 @@
 async = require 'async'
-config = require './manager-config.json'
+config = require './config/manager-config.json'
 
 getLogger = (name, level) ->
 	log4js = require 'log4js'
@@ -44,7 +44,7 @@ else
 			callback()
 		startServer = (callback) ->
 			if config['run server']
-				server = require './market-server'
+				server = require './modules/market-server'
 				server.start callback
 			else
 				callback()

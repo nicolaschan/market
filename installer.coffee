@@ -1,4 +1,4 @@
-log = require './simple-logger'
+log = require './modules/simple-logger'
 
 sys = require 'sys'
 exec = require 'child_process'

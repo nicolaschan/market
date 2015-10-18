@@ -72,7 +72,17 @@
 						this.items = [];
 						for (var i in this.allItems) {
 							var found = true;
-							var pieces = this.allItems[i].name.toLowerCase() + ' ' + this.allItems[i].description.toLowerCase() + ' ' + this.allItems[i].owner.toLowerCase() + ' ' + displayCurrency(store.getTotal(this.allItems[i].price));
+							var pieces = '';
+							if (this.allItems[i].name) {
+								pieces += this.allItems[i].name.toLowerCase() + ' ';
+							}
+							if (this.allItems[i].description) {
+								pieces += this.allItems[i].description.toLowerCase() + ' ';
+							}
+							if (this.allItems[i].price) {
+								pieces += displayCurrency(store.getTotal(this.allItems[i].price));
+							}
+
 							var query = this.search.toLowerCase().split(' ');
 							for (var j in query) {
 								if (!(pieces.includes(query[j]))) {
@@ -121,6 +131,13 @@
 							store.successMessage = '';
 							store.errorMessage = error_messages.communication_error;
 						});
+					};
+
+					this.viewingItem = {};
+					this.showBuyModal = function(item) {
+						store.quantity = 1;
+						store.viewingItem = item;
+						$('#itemBuyModal').modal('show');
 					};
 				},
 				controllerAs: 'itemsCtrl'
@@ -177,6 +194,8 @@
 						forSale: false
 					};
 
+					this.displayItem = {};
+
 					this.errorMessage = '';
 					this.successMessage = '';
 					this.addItem = function() {
@@ -227,6 +246,10 @@
 							store.errorMessage = error_messages.communication_error;
 						});
 					};
+					this.showDeleteModal = function(item) {
+						store.displayItem = item;
+						$('#itemDeleteModal').modal('show');
+					};
 
 					this.editingItem = {};
 					this.editItem = function() {
@@ -248,6 +271,10 @@
 					};
 					this.setEditingItem = function(item) {
 						this.editingItem = JSON.parse(JSON.stringify(item));
+					};
+					this.showEditModal = function(item) {
+						store.setEditingItem(item);
+						$('#itemEditModal').modal('show');
 					};
 				},
 				controllerAs: 'sellItemsCtrl'
@@ -897,9 +924,10 @@
 					this.whitelistedUsers = [];
 					this.whitelistAdd = '';
 					updaters.accountMoneyAcceptance = function() {
-						$http.get('/api/user?fields=enableWhitelist,whitelistedUsers').then(function(response) {
+						$http.get('/api/user?fields=enableWhitelist,whitelistedUsers,id').then(function(response) {
 							store.enableWhitelist = response.data.enableWhitelist;
 							store.whitelistedUsers = response.data.whitelistedUsers;
+							store.userId = response.data.id;
 						});
 					};
 					updaters.accountMoneyAcceptance();
@@ -910,6 +938,7 @@
 						var key = event.keyCode;
 						if (key === 13) {
 							var bankid = (store.whitelistAdd.charAt(0) !== '#') ? store.whitelistAdd : store.whitelistAdd.substring(1);
+							bankid = bankid.toLowerCase();
 							if (!(store.whitelistedUsers.indexOf(bankid) > -1)) {
 								store.whitelistedUsers.push(bankid);
 							}
@@ -935,6 +964,24 @@
 					};
 					this.revertMoneyAcceptanceChanges = function() {
 						updaters.accountMoneyAcceptance();
+					};
+
+					this.userId = '';
+					this.deleteAccount = function() {
+						$http.post('/api/delete-user', {
+							id: store.userId
+						}).then(function(response) {
+							if (response.data.success) {
+								store.errorMessage = '';
+								store.successMessage = 'Account deleted';
+							} else {
+								store.successMessage = '';
+								store.errorMessage = response.data.message;
+							}
+						}, function(response) {
+							store.successMessage = '';
+							store.errorMessage = error_messages.communication_error;
+						});
 					};
 				},
 				controllerAs: 'accountCtrl'

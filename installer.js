@@ -2,7 +2,7 @@
 (function() {
   var createDirectories, exec, installDependencies, log, next, performInstallation, setConfig, sys;
 
-  log = require('./simple-logger');
+  log = require('./modules/simple-logger');
 
   sys = require('sys');
 

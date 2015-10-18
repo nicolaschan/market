@@ -1,0 +1,37 @@
+{
+    "port": {
+        "http": 8080,
+        "https": 8080
+    },
+    "https": {
+        "enabled": false,
+        "key": "keys/*.nc99.co.key",
+        "cert": "keys/*.nc99.co.crt"
+    },
+    "mongodb": {
+        "host": "10.0.1.100",
+        "port": 27017,
+        "database": "market"
+    },
+    "logger": {
+        "filename": "main.log",
+        "level": "ALL"
+    },
+    "captcha": {
+        "enabled": false,
+        "site_key": "site key",
+        "secret_key": "secret key"
+    },
+    "page_text": {
+        "title": "Minecraft Market",
+        "footer": "Market for nc99 Minecraft Servers"
+    },
+    "admins": ["market"],
+    "money_factory": ["factory"],
+    "tax": {
+        "rate": 0.05,
+        "recipient": "tax"
+    },
+    "default_tagline": "A market user",
+    "user_not_found": "[ ? ]"
+}

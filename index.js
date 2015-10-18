@@ -4,7 +4,7 @@
 
   async = require('async');
 
-  config = require('./manager-config.json');
+  config = require('./config/manager-config.json');
 
   getLogger = function(name, level) {
     var log4js, logger, path;
@@ -60,7 +60,7 @@
       startServer = function(callback) {
         var server;
         if (config['run server']) {
-          server = require('./market-server');
+          server = require('./modules/market-server');
           return server.start(callback);
         } else {
           return callback();

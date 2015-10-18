@@ -1,4 +1,4 @@
-log = require './simple-logger'
+log = require './modules/simple-logger'
 
 async = require 'async'
 

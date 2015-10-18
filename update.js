@@ -2,7 +2,7 @@
 (function() {
   var async, current_package, current_version, getLatestPackageInfo, installNewVersion, log, newest_version;
 
-  log = require('./simple-logger');
+  log = require('./modules/simple-logger');
 
   async = require('async');
 
