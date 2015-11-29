@@ -1,7 +1,0 @@
-{
-	"run server": true,
-	"logger": {
-		"filename": "main.log",
-		"level": "ALL"
-	}
-}
