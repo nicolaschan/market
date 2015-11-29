@@ -1,5 +1,44 @@
+async = require 'async'
+
+http_server = null
+https_server = null
+httpolyglot_server = null
+
+mongoose = null
+conn = null
+
+stop = (ready) ->
+  stopHttp = (callback) ->
+    if http_server?
+      http_server.close callback
+    else
+      callback()
+  stopHttps = (callback) ->
+    if https_server?
+      https_server.close callback
+    else
+      callback()
+  stopHttpolyglot = (callback) ->
+    if httpolyglot_server?
+      httpolyglot_server.close callback
+    else
+      callback()
+  stopMongoose = (callback) ->
+    if mongoose?
+      mongoose.models = {}
+    if conn?
+      conn.close callback
+    else
+      callback()
+
+  async.parallel [
+    stopHttp
+    stopHttps
+    stopHttpolyglot
+    stopMongoose
+  ], ready
+
 start = (ready) ->
-  async = require 'async'
   config = require './../config/server-config.json'
 
   getLogger = (name, level) ->
@@ -22,6 +61,8 @@ start = (ready) ->
     return logger
   logger = getLogger 'market-server', config.logger.level
 
+  logger.info 'Starting server...'
+
   conn = {}
   models = {}
 
@@ -41,7 +82,13 @@ start = (ready) ->
     isValidUsernameFormat: (username) ->
       min_length = 3
       max_length = 16
-      unless /^[a-zA-Z0-9_]*$/g.test(username)
+
+      if (username isnt username.trim())
+        return no
+      if (username.indexOf('  ') > -1)
+        return no
+
+      unless /^[a-zA-Z0-9_ ]*$/g.test(username)
         return no
       unless username.length >= min_length and username.length <= max_length
         return no
@@ -236,7 +283,9 @@ start = (ready) ->
           else
             callback 'Could not find recipient'
       transferMoney = (callback) ->
-        if to.enableWhitelist and (not (to.whitelistedUsers.indexOf(from.bankid) > -1))
+        if (to._id.toString() is from._id.toString())
+          return callback 'You can\'t send money to yourself'
+        if to.enableWhitelist and (not (to.whitelistedUsers.indexOf(from._id.toString()) > -1))
           return callback 'The user you are trying to send to is not accepting money from you'
         unless amount > 0
           if amount is 0
@@ -1112,20 +1161,33 @@ start = (ready) ->
           if req.user.taxExempt
             taxRate = 0
 
-          res.send fieldSelector.selectWithQueryString(req.query.fields,
-            id: req.user._id
-            username: req.user.username
-            bankid: req.user.bankid
-            balance: req.user.balance / 100
-            tagline: req.user.tagline
-            taxRate: taxRate
-            isAdmin: utilities.checkIsAdmin(req.user.bankid)
-            trusted: req.user.trusted
-            taxExempt: req.user.taxExempt
-            enableWhitelist: req.user.enableWhitelist
-            whitelistedUsers: req.user.whitelistedUsers
-            isMoneyFactory: utilities.isMoneyFactory(req.user.bankid)
-          )
+          whitelistedUsers = []
+
+          convertAndAddToArray = (id, callback) ->
+            utilities.idToUser id, (user) ->
+              if user?
+                whitelistedUsers.push
+                  username: user.username
+                  bankid: user.bankid
+                  id: user._id
+              callback()
+          
+          async.eachSeries req.user.whitelistedUsers, convertAndAddToArray, (err) ->
+
+            res.send fieldSelector.selectWithQueryString(req.query.fields,
+              id: req.user._id
+              username: req.user.username
+              bankid: req.user.bankid
+              balance: req.user.balance / 100
+              tagline: req.user.tagline
+              taxRate: taxRate
+              isAdmin: utilities.checkIsAdmin(req.user.bankid)
+              trusted: req.user.trusted
+              taxExempt: req.user.taxExempt
+              enableWhitelist: req.user.enableWhitelist
+              whitelistedUsers: whitelistedUsers
+              isMoneyFactory: utilities.isMoneyFactory(req.user.bankid)
+            )
         else
           res.send null
       app.get '/api/users', (req, res) ->
@@ -1133,7 +1195,15 @@ start = (ready) ->
         limit = if req.query.limit? then parseInt(req.query.limit) else null
         skip = if req.query.skip? then parseInt(req.query.skip) else 0
 
-        models.users.find {}
+        query = {}
+        if req.query.username?
+          query.username_lower = req.query.username.toLowerCase()
+        if req.query.bankid?
+          query.bankid = req.query.bankid.toLowerCase()
+        if req.query.id?
+          query._id = req.query.id
+
+        models.users.find query
           .sort
             balance: -1
           .skip skip
@@ -1409,3 +1479,4 @@ start = (ready) ->
   ], ready
 
 module.exports.start = start
+module.exports.stop = stop

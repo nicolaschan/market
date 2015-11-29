@@ -46,14 +46,19 @@
 	</div>
 	<div class="panel-body" ng-show="accountCtrl.enableWhitelist">
 		<ul class="list-group">
-			<li class="list-group-item" ng-repeat="user in accountCtrl.whitelistedUsers">
-				#{{user}}
+			<li class="list-group-item" ng-repeat="user in accountCtrl.whitelistedUsers" ng-show="user.username">
+				<span ng-show="user.username">
+					{{user.username}} (#{{user.bankid}})
+				</span>
+				<span ng-hide="user.username">
+					Searching...
+				</span>
 				<button type="button" class="close" ng-click="accountCtrl.removeFromWhitelist(user)">&times;</button>
 			</li>
 			<li class="list-group-item">
 				<div class="input-group">
-					<span clas="input-group-addon" id="basic-addon1">Add allowed Bank ID</span>
-					<input type="text" class="form-control" placeholder="#BankID" aria-describedby="basic-addon1" ng-keypress="accountCtrl.checkWhitelistAdd($event)" ng-model="accountCtrl.whitelistAdd" maxlength="16">
+					<span clas="input-group-addon" id="basic-addon1">Add allowed user</span>
+					<input type="text" class="form-control" placeholder="Username or #BankID" aria-describedby="basic-addon1" ng-keypress="accountCtrl.checkWhitelistAdd($event)" ng-model="accountCtrl.whitelistAdd" maxlength="16">
 				</div>
 			</li>
 		</ul>
@@ -80,11 +85,11 @@
 					<h4 class="modal-title">Confirm Delete</h4>
 				</div>
 				<div class="modal-body">
-					<p>Are you sure you want to delete your account? All your items will be deleted and your money will be transferred to the tax recipient. This cannot be undone.</p>
+					<p>Are you sure you want to delete your account? Your information may be deleted and your money will be transferred to the tax recipient. This cannot be undone.</p>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-					<button type="button" class="btn btn-danger" data-dismiss="modal" ng-click="accountCtrl.deleteAccount()"><span class="glyphicon glyphicon-remove"></span> Delete this Account</button>
+					<button type="button" class="btn btn-danger" data-dismiss="modal" ng-click="accountCtrl.deleteAccount()"><span class="glyphicon glyphicon-trash"></span> Delete this Account</button>
 				</div>
 			</div>
 		</div>

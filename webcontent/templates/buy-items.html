@@ -44,7 +44,7 @@
 					<h4 class="modal-title">Confirm Purchase</h4>
 				</div>
 				<div class="modal-body">
-					<p>Are you sure you want to purchase <strong>{{itemsCtrl.viewingItem.name}}</strong> for <strong>{{itemsCtrl.getTotalWithQuantity(item.price) | currency}}</strong>?</p>
+					<p>Are you sure you want to purchase <strong>{{itemsCtrl.viewingItem.name}}</strong> for <strong>{{itemsCtrl.getTotalWithQuantity(itemsCtrl.viewingItem.price) | currency}}</strong>?</p>
 					<p>After this purchase, you will have <strong>{{itemsCtrl.getBalanceAfter(itemsCtrl.getTotalWithQuantity(itemsCtrl.viewingItem.price)) | currency}}</strong> in your account.</p>
 					<div class="input-group">
 						<span class="input-group-addon">Quantity</span>

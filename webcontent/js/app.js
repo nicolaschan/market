@@ -931,16 +931,64 @@
 						});
 					};
 					updaters.accountMoneyAcceptance();
+					var getIdArray = function(users) {
+						var output = [];
+						for (var i in users) {
+							if (users[i].id) {
+								output.push(users[i].id);
+							}
+						}
+						return output;
+					};
+					var getWhitelistIndex = function(id) {
+						var array_of_id = getIdArray(store.whitelistedUsers);
+						return array_of_id.indexOf(id);
+					};
 					this.removeFromWhitelist = function(user) {
-						store.whitelistedUsers.splice(store.whitelistedUsers.indexOf(user), 1);
+						store.whitelistedUsers.splice(getWhitelistIndex(user.id), 1);
 					};
 					this.checkWhitelistAdd = function(event) {
 						var key = event.keyCode;
 						if (key === 13) {
-							var bankid = (store.whitelistAdd.charAt(0) !== '#') ? store.whitelistAdd : store.whitelistAdd.substring(1);
-							bankid = bankid.toLowerCase();
-							if (!(store.whitelistedUsers.indexOf(bankid) > -1)) {
-								store.whitelistedUsers.push(bankid);
+							var index = store.whitelistedUsers.length;
+							store.whitelistedUsers.push({});
+							if (store.whitelistAdd.charAt(0) === '#') {
+								// is a bankid
+
+								$http.get('/api/users?bankid=' + store.whitelistAdd.substring(1)).then(function(response) {
+									if (response.data.length < 1) {
+										store.whitelistedUsers.splice(index, 1);
+									} else {
+										if (!(getWhitelistIndex(response.data[0]._id) > -1)) {
+											store.whitelistedUsers[index] = {
+												username: response.data[0].username,
+												bankid: response.data[0].bankid,
+												id: response.data[0]._id
+											};
+										} else {
+											store.whitelistedUsers.splice(index, 1);
+										}
+									}
+								});
+
+							} else {
+								// is a username
+
+								$http.get('/api/users?username=' + store.whitelistAdd).then(function(response) {
+									if (response.data.length < 1) {
+										store.whitelistedUsers.splice(index, 1);
+									} else {
+										if (!(getWhitelistIndex(response.data[0]._id) > -1)) {
+											store.whitelistedUsers[index] = {
+												username: response.data[0].username,
+												bankid: response.data[0].bankid,
+												id: response.data[0]._id
+											};
+										} else {
+											store.whitelistedUsers.splice(index, 1);
+										}
+									}
+								});
 							}
 							store.whitelistAdd = '';
 						}
@@ -948,7 +996,7 @@
 					this.updateMoneyAcceptance = function() {
 						$http.post('/api/account/whitelist', {
 							enabled: store.enableWhitelist,
-							users: store.whitelistedUsers
+							users: getIdArray(store.whitelistedUsers)
 						}).then(function(response) {
 							if (response.data.success) {
 								store.errorMessage = '';
