@@ -13,7 +13,13 @@ At first players may not trust the new currency, thus it won't have much value. 
 
 You'll notice that the configuration file has an option for setting a tax rate on transactions. In most cases, I would imagine you would want to either set the tax rate to 0% or a very low number. This way players will feel more comfortable storing their money in the market knowing that they won't lose any (or very little). If you do decide to have a nonzero tax rate, I recommend justifying it clearly to the players so they know that the money they lose isn't just disappearing. For example, you could use tax money to fund public server projects such as automatic farms or giant buildings everyone can use. In this way, everyone can see real, concrete evidence that their tax money is in fact benefiting them and everyone else.
 
-### Keep in mind this project is still in development and is not intended for use in production. There will be bugs and missing features. There are also MAJOR security issues.
+### Keep in mind this project is still in development and is not intended for use in production. There will be bugs and missing features. I can also not guarantee the security of this application.
+
+# Screenshots
+![transactions](https://i.imgur.com/YBO8mbh.png)
+![buy](https://i.imgur.com/xCiPozY.png)
+![users](https://i.imgur.com/wDOyEuW.png)
+![settings](https://i.imgur.com/kTgMo7w.png)
 
 # How to install
 ## Requirements
