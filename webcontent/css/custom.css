@@ -7,3 +7,19 @@
 .jumbotron-yellow {
 	background-color: #fffde7;
 }
+
+.username-select {
+  color: black;
+}
+.bankid {
+  color: #aaaaaa;
+}
+
+.gain-money {
+  font-weight: 600;
+  color: limegreen;
+}
+.lose-money {
+  font-weight: 600;
+  color: red;
+}

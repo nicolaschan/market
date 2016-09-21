@@ -10,10 +10,40 @@
 	</div>
 	<div class="panel panel-default">
 		<div class="panel-body">
-			<div class="input-group">
-				<span class="input-group-addon" id="basic-addon1">Recipient</span>
-				<input type="text" class="form-control" placeholder="Username or #Bank ID" aria-describedby="basic-addon1" ng-model="sendMoneyCtrl.recipient" autofocus>
-			</div>
+			<select id="recipient" placeholder="Recipient" ng-model="sendMoneyCtrl.recipient" autofocus></select>
+			<script type="text/javascript">
+				$('#recipient').selectize({
+					create: false,
+					sortField: 'text',
+					valueField: 'username',
+					labelField: 'username',
+					searchField: ['username', 'searchBankid'],
+					render: {
+						item: function(item, escape) {
+							if (item.trusted)
+								return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append($('<span class="bankid"></span>').text(' (' + item.searchBankid + ') ')).append('<span class="glyphicon glyphicon-ok-sign" title="Trusted User"></span>');
+							else
+								return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append($('<span class="bankid"></span>').text(' (' + item.searchBankid + ')'));
+						},
+						option: function(item, escape) {
+							if (item.trusted)
+								return $('<div></div>').append($('<span class="username-select"></span>').text(item.username + ' ').append('<span class="glyphicon glyphicon-ok-sign" title="Trusted User"></span>')).append('<br>').append($('<span class="bankid"></span>').text(item.searchBankid));
+							return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append('<br>').append($('<span class="bankid"></span>').text(item.searchBankid));
+						}
+					},
+					load: function(query, callback) {
+						if (query.charAt(0) === '#')
+							query = query.substring(1);
+						$.ajax({url: '/api/users?accepting=true&search=' + query, type: 'GET', error: callback, success: function(users) {
+							for (var i in users) {
+								users[i].searchBankid = '#' + users[i].bankid;
+							}
+							callback(users);
+						}});
+					},
+					preload: true
+				});
+			</script>
 			<br>
 			<div class="input-group">
 				<span class="input-group-addon">$</span>

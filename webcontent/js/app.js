@@ -371,15 +371,39 @@
 
 					this.search = '';
 
+					this.numberPerPage = 16;
+					this.pageNumber = 0;
+
 					this.allTransactions = [];
 					this.transactions = this.allTransactions;
 
+					this.count;
 					this.loaded = false;
-					$http.get('/api/transactions').then(function(response) {
-						store.allTransactions = response.data;
-						store.transactions = response.data;
-						store.loaded = true;
-					});
+
+					this.loadTransactions = function() {
+						$http.get('/api/transactions?skip=' + (this.pageNumber * this.numberPerPage) + '&limit=' + this.numberPerPage).then(function(response) {
+							store.allTransactions = response.data;
+							store.transactions = response.data;
+							store.loaded = true;
+						});
+						$http.get('/api/transactions/count').then(function(response) {
+							store.count = response.data.count;
+						});
+					};
+					this.loadTransactions();
+
+					this.previousPage = function() {
+						if (this.pageNumber > 0) {
+							this.pageNumber--;
+							this.loadTransactions();
+						}
+					};
+					this.nextPage = function() {
+						if (((this.pageNumber + 1) * this.numberPerPage) < this.count) {
+							this.pageNumber++;
+							this.loadTransactions();
+						}
+					};
 
 					this.isIncoming = function(transaction) {
 						if (transaction.to.username === global_values.username) {
@@ -439,6 +463,9 @@
 							}
 						}
 						return output;
+					};
+					this.getTransactions = function() {
+						return this.transactions;
 					};
 				},
 				controllerAs: 'transactionsCtrl'
@@ -921,97 +948,46 @@
 					}
 
 					this.enableWhitelist = false;
+					this.whitelistInitialized = false;
 					this.whitelistedUsers = [];
 					this.whitelistAdd = '';
 					updaters.accountMoneyAcceptance = function() {
 						$http.get('/api/user?fields=enableWhitelist,whitelistedUsers,id').then(function(response) {
 							store.enableWhitelist = response.data.enableWhitelist;
-							store.whitelistedUsers = response.data.whitelistedUsers;
+							for (var i in response.data.whitelistedUsers) {
+								store.whitelistedUsers.push(response.data.whitelistedUsers[i].bankid);
+							}
 							store.userId = response.data.id;
 						});
 					};
 					updaters.accountMoneyAcceptance();
-					var getIdArray = function(users) {
-						var output = [];
-						for (var i in users) {
-							if (users[i].id) {
-								output.push(users[i].id);
-							}
-						}
-						return output;
-					};
-					var getWhitelistIndex = function(id) {
-						var array_of_id = getIdArray(store.whitelistedUsers);
-						return array_of_id.indexOf(id);
-					};
-					this.removeFromWhitelist = function(user) {
-						store.whitelistedUsers.splice(getWhitelistIndex(user.id), 1);
-					};
-					this.checkWhitelistAdd = function(event) {
-						var key = event.keyCode;
-						if (key === 13) {
-							var index = store.whitelistedUsers.length;
-							store.whitelistedUsers.push({});
-							if (store.whitelistAdd.charAt(0) === '#') {
-								// is a bankid
 
-								$http.get('/api/users?bankid=' + store.whitelistAdd.substring(1)).then(function(response) {
-									if (response.data.length < 1) {
-										store.whitelistedUsers.splice(index, 1);
-									} else {
-										if (!(getWhitelistIndex(response.data[0]._id) > -1)) {
-											store.whitelistedUsers[index] = {
-												username: response.data[0].username,
-												bankid: response.data[0].bankid,
-												id: response.data[0]._id
-											};
-										} else {
-											store.whitelistedUsers.splice(index, 1);
-										}
-									}
-								});
-
-							} else {
-								// is a username
-
-								$http.get('/api/users?username=' + store.whitelistAdd).then(function(response) {
-									if (response.data.length < 1) {
-										store.whitelistedUsers.splice(index, 1);
-									} else {
-										if (!(getWhitelistIndex(response.data[0]._id) > -1)) {
-											store.whitelistedUsers[index] = {
-												username: response.data[0].username,
-												bankid: response.data[0].bankid,
-												id: response.data[0]._id
-											};
-										} else {
-											store.whitelistedUsers.splice(index, 1);
-										}
-									}
-								});
-							}
-							store.whitelistAdd = '';
-						}
-					};
-					this.updateMoneyAcceptance = function() {
-						$http.post('/api/account/whitelist', {
-							enabled: store.enableWhitelist,
-							users: getIdArray(store.whitelistedUsers)
-						}).then(function(response) {
-							if (response.data.success) {
-								store.errorMessage = '';
-								store.successMessage = 'Money acceptance settings updated';
-							} else {
-								store.successMessage = '';
-								store.errorMessage = response.data.message;
-							}
-						}, function(response) {
-							store.successMessage = '';
-							store.errorMessage = error_messages.communication_error;
+					var getIdArray = function(bankids, callback) {
+						$http.get('/api/users/ids?bankids=' + JSON.stringify(bankids)).then(function(response) {
+							callback(response.data);
 						});
 					};
-					this.revertMoneyAcceptanceChanges = function() {
-						updaters.accountMoneyAcceptance();
+					this.updateMoneyAcceptance = function() {
+						if (!store.whitelistInitialized)
+							return store.whitelistInitialized = true;
+
+						getIdArray(this.whitelistedUsers, function(ids) {
+							$http.post('/api/account/whitelist', {
+								enabled: store.enableWhitelist,
+								users: ids
+							}).then(function(response) {
+								if (response.data.success) {
+									store.errorMessage = '';
+									store.successMessage = 'Money acceptance settings updated';
+								} else {
+									store.successMessage = '';
+									store.errorMessage = response.data.message;
+								}
+							}, function(response) {
+								store.successMessage = '';
+								store.errorMessage = error_messages.communication_error;
+							});
+						});
 					};
 
 					this.userId = '';

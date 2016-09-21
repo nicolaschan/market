@@ -1192,6 +1192,10 @@ start = (ready) ->
           res.send null
       app.get '/api/users', (req, res) ->
         res.set 'Content-Type', 'text/json'
+
+        unless req.user?
+          return res.send []
+
         limit = if req.query.limit? then parseInt(req.query.limit) else null
         skip = if req.query.skip? then parseInt(req.query.skip) else 0
 
@@ -1202,21 +1206,54 @@ start = (ready) ->
           query.bankid = req.query.bankid.toLowerCase()
         if req.query.id?
           query._id = req.query.id
+        if req.query.search?
+          query.$or = [{
+            username_lower:
+              $regex: req.query.search.toLowerCase()
+          }
+          {
+            bankid:
+              $regex: req.query.search.toLowerCase()
+          }]
 
         models.users.find query
           .sort
             balance: -1
           .skip skip
           .limit limit
-          .select '_id username bankid tagline balance trusted taxExempt'
+          .select '_id username bankid tagline balance trusted taxExempt enableWhitelist whitelistedUsers'
           .lean()
           .exec (err, data) ->
+            users = []
             if data?
               for user in data
                 user.balance = user.balance / 100
-              res.send data
+                unless (req.query.accepting == 'true' and user.enableWhitelist and user.whitelistedUsers.indexOf req.user._id < 0) or ((req.query.accepting == 'true' or req.query.others == 'true') and user._id.toString() == req.user._id.toString())
+                  users.push user
+              res.send users
             else
               res.send []
+      app.get '/api/users/ids', (req, res) ->
+        res.set 'Content-Type', 'text/json'
+
+        users = JSON.parse req.query.bankids
+
+        convertBankidToId = (bankid, callback) ->
+          models.users.findOne {
+            bankid: bankid.toLowerCase()
+          }
+            .lean()
+            .exec (err, user) ->
+              if user?
+                callback null, user._id
+              else
+                callback 'Could not find bankid ' + bankid
+
+        async.map users, convertBankidToId, (err, ids) ->
+          unless err?
+            return res.send ids
+          else
+            return res.send null
       app.get '/api/receipts', (req, res) ->
         res.set 'Content-Type', 'text/json'
 
@@ -1281,14 +1318,22 @@ start = (ready) ->
           return res.send null
         limit = if req.query.limit? then parseInt(req.query.limit) else null
         skip = if req.query.skip? then parseInt(req.query.skip) else 0
-
-        models.transactions.find {
+        query =
           $or: [{
             to: req.user._id
           }, {
             from: req.user._id
           }]
-        }
+
+        if req.query.type?
+          if req.query.type == 'incoming'
+            query =
+              to: req.user._id
+          else if req.query.type == 'outgoing'
+            query =
+              from: req.user._id
+
+        models.transactions.find query
           .sort
             date: -1
           .skip skip
@@ -1328,6 +1373,25 @@ start = (ready) ->
                 res.send data
             else
               res.send []
+      app.get '/api/transactions/count', (req, res) ->
+        res.set 'Content-Type', 'text/json'
+
+        unless req.user?
+          return res.send null
+
+        models.transactions.find models.transactions.find {
+          $or: [{
+            to: req.user._id
+          }, {
+            from: req.user._id
+          }]
+        }
+          .count (err, count) ->
+            unless err?
+              res.send
+                count: count
+            else
+              res.send null
       app.get '/api/quicklink', (req, res) ->
         res.set 'Content-Type', 'text/json'
 

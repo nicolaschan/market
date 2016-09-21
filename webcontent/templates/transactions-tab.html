@@ -13,38 +13,30 @@
 </div>
 <loading-icon ng-hide="transactionsCtrl.loaded"></loading-icon>
 <div class="container">
-	<div ng-show="transactionsCtrl.getIncomingTransactions().length">
-		<h2>Incoming</h2>
+	<br>
+	<nav aria-label="...">
+		<ul class="pager" ng-show="(transactionsCtrl.pageNumber > 0) || ((transactionsCtrl.pageNumber + 1) * transactionsCtrl.numberPerPage < transactionsCtrl.count)">
+		  <li ng-click="transactionsCtrl.previousPage()" ng-class="transactionsCtrl.pageNumber > 0 ? '' : 'disabled'"><a href="javascript:void(0)">Newer</a></li>
+			<li ng-click="transactionsCtrl.nextPage()" ng-class="(transactionsCtrl.pageNumber + 1) * transactionsCtrl.numberPerPage < transactionsCtrl.count ? '' : 'disabled'"><a href="javascript:void(0)">Older</a></li>
+		</ul>
+	</nav>
+	<div ng-show="transactionsCtrl.getTransactions().length">
 		<table class="table table-hover">
 			<thead>
-				<th>Amount</th>
-				<th>Sender</th>
-				<th>Memo</th>
-				<th>Timestamp</th>
-			</thead>
-			<tbody>
-				<tr ng-repeat="transaction in transactionsCtrl.getIncomingTransactions()">
-					<td>{{transaction.amount | currency}}</td>
-					<td>{{transaction.from.username}} (#{{transaction.from.bankid}})</td>
-					<td>{{transaction.memo}} <span class="glyphicon glyphicon-asterisk" ng-show="transaction.generated" title="Generated Payment"></span></td>
-					<td>{{transaction.date}}</td>
-				</tr>
-			</tbody>
-		</table>
-	</div>
-	<div ng-show="transactionsCtrl.getOutgoingTransactions().length">
-	<h2>Outgoing</h2>
-		<table class="table table-hover">
-			<thead>
+				<th></th>
 				<th>Amount</th>
 				<th>Recipient</th>
 				<th>Memo</th>
 				<th>Timestamp</th>
 			</thead>
 			<tbody>
-				<tr ng-repeat="transaction in transactionsCtrl.getOutgoingTransactions()">
-					<td>{{transaction.amount | currency}}</td>
-					<td>{{transaction.to.username}} (#{{transaction.to.bankid}})</td>
+				<tr ng-repeat="transaction in transactionsCtrl.getTransactions()">
+					<td>
+							<span class="glyphicon glyphicon-chevron-down" aria-hidden="true" ng-if="transactionsCtrl.isIncoming(transaction)" title="Incoming"></span>
+							<span class="glyphicon glyphicon-chevron-up" aria-hidden="true" ng-if="transactionsCtrl.isOutgoing(transaction)" title="Outgoing"></span>
+					</td>
+					<td ng-class="transactionsCtrl.isIncoming(transaction) ? 'gain-money' : 'lose-money'">{{transactionsCtrl.isIncoming(transaction) ? '+' : '-'}}{{transaction.amount | currency}}</td>
+					<td>{{transaction.to.username}} <span class="bankid">(#{{transaction.to.bankid}})</span></td>
 					<td>{{transaction.memo}} <span class="glyphicon glyphicon-asterisk" ng-show="transaction.generated" title="Generated Payment"></span></td>
 					<td>{{transaction.date}}</td>
 				</tr>

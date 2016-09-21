@@ -40,32 +40,59 @@
 	</div>
 	<div class="panel-body">
 		<div class="input-group">
-			<input type="checkbox" ng-model="accountCtrl.enableWhitelist">
+			<input type="checkbox" ng-model="accountCtrl.enableWhitelist" ng-change="accountCtrl.updateMoneyAcceptance()">
 			Only accept money from specified users
 		</div>
-	</div>
-	<div class="panel-body" ng-show="accountCtrl.enableWhitelist">
-		<ul class="list-group">
-			<li class="list-group-item" ng-repeat="user in accountCtrl.whitelistedUsers" ng-show="user.username">
-				<span ng-show="user.username">
-					{{user.username}} (#{{user.bankid}})
-				</span>
-				<span ng-hide="user.username">
-					Searching...
-				</span>
-				<button type="button" class="close" ng-click="accountCtrl.removeFromWhitelist(user)">&times;</button>
-			</li>
-			<li class="list-group-item">
-				<div class="input-group">
-					<span clas="input-group-addon" id="basic-addon1">Add allowed user</span>
-					<input type="text" class="form-control" placeholder="Username or #BankID" aria-describedby="basic-addon1" ng-keypress="accountCtrl.checkWhitelistAdd($event)" ng-model="accountCtrl.whitelistAdd" maxlength="16">
-				</div>
-			</li>
-		</ul>
-	</div>
-	<div class="panel-footer">
-		<button type="button" class="btn btn-success" ng-click="accountCtrl.updateMoneyAcceptance()">Update Settings</button>
-		<button type="button" class="btn btn-default" ng-click="accountCtrl.revertMoneyAcceptanceChanges()">Revert Changes</button>
+		<span ng-show="accountCtrl.enableWhitelist">
+		<br>
+		<select id="allowedUsers" placeholder="Select users..." ng-model="accountCtrl.whitelistedUsers" ng-change="accountCtrl.updateMoneyAcceptance()"></select>
+		<script type="text/javascript">
+			var whitelistInitialized = false;
+			$('#allowedUsers').selectize({
+				create: false,
+				sortField: 'text',
+				maxItems: null,
+				valueField: 'bankid',
+				labelField: 'username',
+				searchField: ['username', 'searchBankid'],
+				render: {
+					item: function(item, escape) {
+						if (item.trusted)
+							return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append($('<span class="bankid"></span>').text(' (' + item.searchBankid + ') ')).append('<span class="glyphicon glyphicon-ok-sign" title="Trusted User"></span>');
+						else
+							return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append($('<span class="bankid"></span>').text(' (' + item.searchBankid + ')'));
+					},
+					option: function(item, escape) {
+						if (item.trusted)
+							return $('<div></div>').append($('<span class="username-select"></span>').text(item.username + ' ').append('<span class="glyphicon glyphicon-ok-sign" title="Trusted User"></span>')).append('<br>').append($('<span class="bankid"></span>').text(item.bankid));
+						return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append('<br>').append($('<span class="bankid"></span>').text(item.searchBankid));
+					}
+				},
+				load: function(query, callback) {
+					if (query.charAt(0) === '#')
+						query = query.substring(1);
+					$.ajax({url: '/api/users?others=true&search=' + query, type: 'GET', error: callback, success: function(users) {
+						for (var i in users) {
+							users[i].searchBankid = '#' + users[i].bankid;
+						}
+						callback(users);
+
+						if (!whitelistInitialized) {
+							$.ajax({url: '/api/user', type: 'GET', error: callback, success: function(user) {
+								var bankids = [];
+								for (var i in user.whitelistedUsers) {
+									bankids.push(user.whitelistedUsers[i].bankid);
+								}
+								$('#allowedUsers').selectize()[0].selectize.setValue(bankids);
+								whitelistInitialized = true;
+							}});
+						}
+					}});
+				},
+				preload: true
+			});
+		</script>
+		</span>
 	</div>
 </div>
 <div class="panel panel-danger">

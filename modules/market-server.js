@@ -1396,6 +1396,9 @@
         app.get('/api/users', function(req, res) {
           var limit, query, skip;
           res.set('Content-Type', 'text/json');
+          if (req.user == null) {
+            return res.send([]);
+          }
           limit = req.query.limit != null ? parseInt(req.query.limit) : null;
           skip = req.query.skip != null ? parseInt(req.query.skip) : 0;
           query = {};
@@ -1408,18 +1411,58 @@
           if (req.query.id != null) {
             query._id = req.query.id;
           }
+          if (req.query.search != null) {
+            query.$or = [
+              {
+                username_lower: {
+                  $regex: req.query.search.toLowerCase()
+                }
+              }, {
+                bankid: {
+                  $regex: req.query.search.toLowerCase()
+                }
+              }
+            ];
+          }
           return models.users.find(query).sort({
             balance: -1
-          }).skip(skip).limit(limit).select('_id username bankid tagline balance trusted taxExempt').lean().exec(function(err, data) {
-            var i, len, user;
+          }).skip(skip).limit(limit).select('_id username bankid tagline balance trusted taxExempt enableWhitelist whitelistedUsers').lean().exec(function(err, data) {
+            var i, len, user, users;
+            users = [];
             if (data != null) {
               for (i = 0, len = data.length; i < len; i++) {
                 user = data[i];
                 user.balance = user.balance / 100;
+                if (!((req.query.accepting === 'true' && user.enableWhitelist && user.whitelistedUsers.indexOf(req.user._id < 0)) || ((req.query.accepting === 'true' || req.query.others === 'true') && user._id.toString() === req.user._id.toString()))) {
+                  users.push(user);
+                }
               }
-              return res.send(data);
+              return res.send(users);
             } else {
               return res.send([]);
+            }
+          });
+        });
+        app.get('/api/users/ids', function(req, res) {
+          var convertBankidToId, users;
+          res.set('Content-Type', 'text/json');
+          users = JSON.parse(req.query.bankids);
+          convertBankidToId = function(bankid, callback) {
+            return models.users.findOne({
+              bankid: bankid.toLowerCase()
+            }).lean().exec(function(err, user) {
+              if (user != null) {
+                return callback(null, user._id);
+              } else {
+                return callback('Could not find bankid ' + bankid);
+              }
+            });
+          };
+          return async.map(users, convertBankidToId, function(err, ids) {
+            if (err == null) {
+              return res.send(ids);
+            } else {
+              return res.send(null);
             }
           });
         });
@@ -1493,14 +1536,14 @@
           });
         });
         app.get('/api/transactions', function(req, res) {
-          var limit, skip;
+          var limit, query, skip;
           res.set('Content-Type', 'text/json');
           if (req.user == null) {
             return res.send(null);
           }
           limit = req.query.limit != null ? parseInt(req.query.limit) : null;
           skip = req.query.skip != null ? parseInt(req.query.skip) : 0;
-          return models.transactions.find({
+          query = {
             $or: [
               {
                 to: req.user._id
@@ -1508,7 +1551,19 @@
                 from: req.user._id
               }
             ]
-          }).sort({
+          };
+          if (req.query.type != null) {
+            if (req.query.type === 'incoming') {
+              query = {
+                to: req.user._id
+              };
+            } else if (req.query.type === 'outgoing') {
+              query = {
+                from: req.user._id
+              };
+            }
+          }
+          return models.transactions.find(query).sort({
             date: -1
           }).skip(skip).limit(limit).lean().exec(function(err, data) {
             var convertIdToUsername;
@@ -1555,6 +1610,29 @@
               });
             } else {
               return res.send([]);
+            }
+          });
+        });
+        app.get('/api/transactions/count', function(req, res) {
+          res.set('Content-Type', 'text/json');
+          if (req.user == null) {
+            return res.send(null);
+          }
+          return models.transactions.find(models.transactions.find({
+            $or: [
+              {
+                to: req.user._id
+              }, {
+                from: req.user._id
+              }
+            ]
+          })).count(function(err, count) {
+            if (err == null) {
+              return res.send({
+                count: count
+              });
+            } else {
+              return res.send(null);
             }
           });
         });
@@ -1727,4 +1805,3 @@
   module.exports.stop = stop;
 
 }).call(this);
-
