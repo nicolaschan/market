@@ -958,6 +958,8 @@
 								store.whitelistedUsers.push(response.data.whitelistedUsers[i].bankid);
 							}
 							store.userId = response.data.id;
+							if (store.whitelistedUsers.length <= 0)
+								store.whitelistInitialized = true;
 						});
 					};
 					updaters.accountMoneyAcceptance();

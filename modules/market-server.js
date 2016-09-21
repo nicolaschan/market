@@ -1424,20 +1424,33 @@
               }
             ];
           }
-          return models.users.find(query).sort({
+          return models.users.find().sort({
             balance: -1
-          }).skip(skip).limit(limit).select('_id username bankid tagline balance trusted taxExempt enableWhitelist whitelistedUsers').lean().exec(function(err, data) {
-            var i, len, user, users;
-            users = [];
-            if (data != null) {
-              for (i = 0, len = data.length; i < len; i++) {
-                user = data[i];
-                user.balance = user.balance / 100;
-                if (!((req.query.accepting === 'true' && user.enableWhitelist && user.whitelistedUsers.indexOf(req.user._id < 0)) || ((req.query.accepting === 'true' || req.query.others === 'true') && user._id.toString() === req.user._id.toString()))) {
-                  users.push(user);
+          }).limit(1).lean().exec(function(err, users) {
+            var richestUser;
+            if (users[0] != null) {
+              richestUser = users[0]._id.toString();
+              return models.users.find(query).sort({
+                balance: -1
+              }).skip(skip).limit(limit).select('_id username bankid tagline balance trusted taxExempt enableWhitelist whitelistedUsers').lean().exec(function(err, data) {
+                var i, len, user;
+                users = [];
+                if (data != null) {
+                  for (i = 0, len = data.length; i < len; i++) {
+                    user = data[i];
+                    if (user._id.toString() === richestUser) {
+                      user.richest = true;
+                    }
+                    user.balance = user.balance / 100;
+                    if (!((req.query.accepting === 'true' && user.enableWhitelist && ((user.whitelistedUsers.indexOf(req.user._id.toString())) < 0)) || ((req.query.accepting === 'true' || req.query.others === 'true') && user._id.toString() === req.user._id.toString()))) {
+                      users.push(user);
+                    }
+                  }
+                  return res.send(users);
+                } else {
+                  return res.send([]);
                 }
-              }
-              return res.send(users);
+              });
             } else {
               return res.send([]);
             }

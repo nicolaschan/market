@@ -1216,21 +1216,33 @@ start = (ready) ->
               $regex: req.query.search.toLowerCase()
           }]
 
-        models.users.find query
-          .sort
-            balance: -1
-          .skip skip
-          .limit limit
-          .select '_id username bankid tagline balance trusted taxExempt enableWhitelist whitelistedUsers'
+        models.users.find().sort {
+          balance: -1
+        }
+          .limit 1
           .lean()
-          .exec (err, data) ->
-            users = []
-            if data?
-              for user in data
-                user.balance = user.balance / 100
-                unless (req.query.accepting == 'true' and user.enableWhitelist and user.whitelistedUsers.indexOf req.user._id < 0) or ((req.query.accepting == 'true' or req.query.others == 'true') and user._id.toString() == req.user._id.toString())
-                  users.push user
-              res.send users
+          .exec (err, users) ->
+            if users[0]?
+              richestUser = users[0]._id.toString()
+              models.users.find query
+                .sort
+                  balance: -1
+                .skip skip
+                .limit limit
+                .select '_id username bankid tagline balance trusted taxExempt enableWhitelist whitelistedUsers'
+                .lean()
+                .exec (err, data) ->
+                  users = []
+                  if data?
+                    for user in data
+                      if (user._id.toString() == richestUser)
+                        user.richest = yes
+                      user.balance = user.balance / 100
+                      unless (req.query.accepting == 'true' and user.enableWhitelist and ((user.whitelistedUsers.indexOf req.user._id.toString()) < 0)) or ((req.query.accepting == 'true' or req.query.others == 'true') and user._id.toString() == req.user._id.toString())
+                        users.push user
+                    res.send users
+                  else
+                    res.send []
             else
               res.send []
       app.get '/api/users/ids', (req, res) ->

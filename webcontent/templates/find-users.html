@@ -33,7 +33,7 @@
 			</thead>
 			<tbody>
 				<tr ng-repeat="user in findUsersCtrl.getAllUsers()">
-					<td>{{user.username}} <span class="glyphicon glyphicon-ok-sign" ng-show="user.trusted" title="Trusted User"></span> <span class="glyphicon glyphicon-star" ng-show="user.taxExempt" title="Tax Exempt User"></span></td>
+					<td>{{user.username}} <span class="glyphicon glyphicon-ok-sign" ng-show="user.trusted" title="Trusted User"></span> <span class="glyphicon glyphicon-star" ng-show="user.taxExempt" title="Tax Exempt User"></span> <span class="glyphicon glyphicon-tower" ng-show="user.richest" title="Richest User"></td>
 					<td>#{{user.bankid}}</td>
 					<td>{{user.tagline}}</td>
 					<td>{{user.balance | currency}}</td>

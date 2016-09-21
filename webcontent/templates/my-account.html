@@ -57,16 +57,21 @@
 				searchField: ['username', 'searchBankid'],
 				render: {
 					item: function(item, escape) {
+						var nameElement = $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append($('<span class="bankid"></span>').text(' (' + item.searchBankid + ') '));
 						if (item.trusted)
-							return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append($('<span class="bankid"></span>').text(' (' + item.searchBankid + ') ')).append('<span class="glyphicon glyphicon-ok-sign" title="Trusted User"></span>');
-						else
-							return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append($('<span class="bankid"></span>').text(' (' + item.searchBankid + ')'));
+							nameElement.append('<span class="glyphicon glyphicon-ok-sign" title="Trusted User"></span>');
+						if (item.richest)
+							nameElement.append('<span class="glyphicon glyphicon-tower" title="Richest User"></span>');
+						return nameElement;
 					},
 					option: function(item, escape) {
-						if (item.trusted)
-							return $('<div></div>').append($('<span class="username-select"></span>').text(item.username + ' ').append('<span class="glyphicon glyphicon-ok-sign" title="Trusted User"></span>')).append('<br>').append($('<span class="bankid"></span>').text(item.bankid));
-						return $('<div></div>').append($('<span class="username-select"></span>').text(item.username)).append('<br>').append($('<span class="bankid"></span>').text(item.searchBankid));
-					}
+							var usernameElement = $('<div></div>').append($('<span class="username-select"></span>').text(item.username + ' '));
+							if (item.trusted)
+								usernameElement.append('<span class="glyphicon glyphicon-ok-sign" title="Trusted User"></span>');
+							if (item.richest)
+								usernameElement.append('<span class="glyphicon glyphicon-tower" title="Richest User"></span>');
+							return usernameElement.append('<br>').append($('<span class="bankid"></span>').text(item.bankid));
+						}
 				},
 				load: function(query, callback) {
 					if (query.charAt(0) === '#')
