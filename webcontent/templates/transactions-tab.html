@@ -25,18 +25,25 @@
 			<thead>
 				<th></th>
 				<th>Amount</th>
-				<th>Recipient</th>
+				<th>Other User</th>
 				<th>Memo</th>
 				<th>Timestamp</th>
 			</thead>
 			<tbody>
 				<tr ng-repeat="transaction in transactionsCtrl.getTransactions()">
 					<td>
-							<span class="glyphicon glyphicon-chevron-down" aria-hidden="true" ng-if="transactionsCtrl.isIncoming(transaction)" title="Incoming"></span>
-							<span class="glyphicon glyphicon-chevron-up" aria-hidden="true" ng-if="transactionsCtrl.isOutgoing(transaction)" title="Outgoing"></span>
+							<span class="glyphicon glyphicon-chevron-up" aria-hidden="true" ng-if="transactionsCtrl.isIncoming(transaction)" title="Incoming"></span>
+							<span class="glyphicon glyphicon-chevron-down" aria-hidden="true" ng-if="transactionsCtrl.isOutgoing(transaction)" title="Outgoing"></span>
 					</td>
 					<td ng-class="transactionsCtrl.isIncoming(transaction) ? 'gain-money' : 'lose-money'">{{transactionsCtrl.isIncoming(transaction) ? '+' : '-'}}{{transaction.amount | currency}}</td>
-					<td>{{transaction.to.username}} <span class="bankid">(#{{transaction.to.bankid}})</span></td>
+					<td>
+					  <span ng-if="transactionsCtrl.isIncoming(transaction)">
+					    {{transaction.from.username}} <span class="bankid">(#{{transaction.from.bankid}})</span>
+					  </span>
+					  <span ng-if="transactionsCtrl.isOutgoing(transaction)">
+					    {{transaction.to.username}} <span class="bankid">(#{{transaction.to.bankid}})</span>
+					  </span>
+					</td>
 					<td>{{transaction.memo}} <span class="glyphicon glyphicon-asterisk" ng-show="transaction.generated" title="Generated Payment"></span></td>
 					<td>{{transaction.date}}</td>
 				</tr>
