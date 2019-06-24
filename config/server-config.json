@@ -9,7 +9,7 @@
         "cert": "keys/*.nc99.co.crt"
     },
     "mongodb": {
-        "host": "localhost",
+        "host": "mongo",
         "port": 27017,
         "database": "market"
     },
