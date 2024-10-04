@@ -27,7 +27,7 @@
     "jade": "^1.11.0",
     "line-by-line": "^0.1.4",
     "log4js": "^0.6.26",
-    "mongoose": "^4.0.8",
+    "mongoose": "^5.13.22",
     "node-uuid": "^1.4.3",
     "passport": "^0.2.2",
     "passport-local": "^1.0.0",
